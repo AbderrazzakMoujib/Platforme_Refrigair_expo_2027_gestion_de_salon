@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CommercialController;
 use App\Http\Controllers\Admin\ExhibitorController;
 use App\Http\Controllers\Admin\EquipmentController;
 use App\Http\Controllers\Admin\EquipmentRequestController;
+use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -79,6 +80,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/demandes/{equipmentRequest}/reject', [EquipmentRequestController::class, 'reject'])
     ->whereNumber('equipmentRequest')
     ->name('demandes.reject');
+
+    Route::get('/statistiques', StatisticsController::class)
+    ->name('statistiques.index');
 
 });
 

@@ -645,6 +645,84 @@ public function test_admin_can_reject_equipment_request_without_changing_stock()
         'Matériel indisponible.',
         $order->fresh()->rejection_reason
     );
+
+    }
+
+    
+public function test_admin_statistics_show_real_data_and_are_protected(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $commercial = User::factory()->create([
+        'role' => 'commercial',
+        'is_active' => true,
+    ]);
+
+    $exhibitor = $commercial->exhibitors()->create([
+        'company_name' => 'Atlas Froid',
+        'contact_name' => 'Sara Alami',
+        'email' => 'atlas-stats@example.test',
+        'phone' => '+212600000000',
+        'stand_number' => 'A12',
+        'area_sqm' => 24,
+        'authorized_badges' => 5,
+    ]);
+
+    Equipment::create([
+        'name' => 'Table ronde',
+        'category' => 'Mobilier',
+        'price' => '250.00',
+        'quantity_available' => 10,
+        'is_active' => true,
+    ]);
+
+    EquipmentRequest::create([
+        'exhibitor_id' => $exhibitor->id,
+        'status' => 'approved',
+        'total_amount' => '500.00',
+        'reviewed_by' => $admin->id,
+        'reviewed_at' => now(),
+    ]);
+
+    EquipmentRequest::create([
+        'exhibitor_id' => $exhibitor->id,
+        'status' => 'pending',
+        'total_amount' => '300.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.statistiques.index'))
+        ->assertOk()
+        ->assertViewHas('commercialsCount', 1)
+        ->assertViewHas('exhibitorsCount', 1)
+        ->assertViewHas('equipmentCount', 1)
+        ->assertViewHas('requestsCount', 2)
+        ->assertViewHas('approvedRequests', 1)
+        ->assertViewHas('pendingRequests', 1)
+        ->assertViewHas('approvedAmount', 500.0)
+        ->assertViewHas('totalRequestedAmount', 800.0)
+        ->assertViewHas('approvalRate', 50.0)
+        ->assertSee('Atlas Froid')
+        ->assertSee('Performance commerciale')
+        ->assertSee('Évolution des exposants');
+
+    $this->actingAs($commercial)
+        ->get(route('admin.statistiques.index'))
+        ->assertForbidden();
 }
+
+public function test_admin_statistics_handle_empty_database(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->get(route('admin.statistiques.index'))
+        ->assertOk()
+        ->assertViewHas('exhibitorsCount', 0)
+        ->assertViewHas('requestsCount', 0)
+        ->assertViewHas('approvalRate', 0)
+        ->assertSee('Aucune demande enregistrée.');
+}
+
 
 }
