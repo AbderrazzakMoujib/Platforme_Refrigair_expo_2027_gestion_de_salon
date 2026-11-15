@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Exhibitor;
 use App\Models\Equipment;
+use App\Models\EquipmentRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -526,5 +527,124 @@ public function test_admin_can_manage_equipment_catalog(): void
         ->assertForbidden();
 }
 
+
+public function test_admin_can_approve_equipment_request_and_update_stock(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
+    $commercial = User::factory()->create(['role' => 'commercial']);
+
+    $exhibitor = $commercial->exhibitors()->create([
+        'company_name' => 'Atlas Froid',
+        'contact_name' => 'Sara Alami',
+        'email' => 'atlas@example.test',
+        'phone' => '+212600000000',
+        'stand_number' => 'A12',
+        'area_sqm' => 24,
+        'authorized_badges' => 3,
+    ]);
+
+    $equipment = Equipment::create([
+        'name' => 'Table ronde',
+        'category' => 'Mobilier',
+        'price' => '250.00',
+        'quantity_available' => 10,
+        'is_active' => true,
+    ]);
+
+    $order = EquipmentRequest::create([
+        'exhibitor_id' => $exhibitor->id,
+        'status' => 'pending',
+        'total_amount' => '500.00',
+    ]);
+
+    $order->items()->create([
+        'equipment_id' => $equipment->id,
+        'equipment_name' => $equipment->name,
+        'quantity' => 2,
+        'unit_price' => '250.00',
+        'subtotal' => '500.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.demandes.index'))
+        ->assertOk()
+        ->assertSee('Atlas Froid');
+
+    $this->get(route('admin.demandes.show', $order))
+        ->assertOk()
+        ->assertSee('Table ronde')
+        ->assertSee('500,00');
+
+    $this->patch(route('admin.demandes.approve', $order))
+        ->assertRedirect(route('admin.demandes.show', $order));
+
+    $this->assertSame('approved', $order->fresh()->status);
+    $this->assertSame(8, $equipment->fresh()->quantity_available);
+    $this->assertSame($admin->id, $order->fresh()->reviewed_by);
+
+    // Interdire une deuxième validation.
+    $this->patch(route('admin.demandes.approve', $order))
+        ->assertSessionHasErrors('status');
+
+    $this->assertSame(8, $equipment->fresh()->quantity_available);
+
+    // Un commercial ne peut pas consulter ces demandes.
+    $this->actingAs($commercial)
+        ->get(route('admin.demandes.index'))
+        ->assertForbidden();
+
+    $this->patch(route('admin.demandes.approve', $order))
+        ->assertForbidden();
+}
+
+public function test_admin_can_reject_equipment_request_without_changing_stock(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
+    $commercial = User::factory()->create(['role' => 'commercial']);
+
+    $exhibitor = $commercial->exhibitors()->create([
+        'company_name' => 'Froid Test',
+        'contact_name' => 'Contact Test',
+        'email' => 'froid@example.test',
+        'phone' => '+212600000001',
+        'stand_number' => 'B12',
+        'area_sqm' => 12,
+        'authorized_badges' => 2,
+    ]);
+
+    $equipment = Equipment::create([
+        'name' => 'Chaise',
+        'category' => 'Mobilier',
+        'price' => '80.00',
+        'quantity_available' => 20,
+        'is_active' => true,
+    ]);
+
+    $order = EquipmentRequest::create([
+        'exhibitor_id' => $exhibitor->id,
+        'total_amount' => '160.00',
+    ]);
+
+    $order->items()->create([
+        'equipment_id' => $equipment->id,
+        'equipment_name' => 'Chaise',
+        'quantity' => 2,
+        'unit_price' => '80.00',
+        'subtotal' => '160.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.demandes.reject', $order), [
+            'rejection_reason' => 'Matériel indisponible.',
+        ])
+        ->assertRedirect(route('admin.demandes.show', $order));
+
+    $this->assertSame('rejected', $order->fresh()->status);
+    $this->assertSame(20, $equipment->fresh()->quantity_available);
+    $this->assertSame(
+        'Matériel indisponible.',
+        $order->fresh()->rejection_reason
+    );
+}
 
 }

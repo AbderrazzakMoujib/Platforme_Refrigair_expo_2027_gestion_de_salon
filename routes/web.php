@@ -7,6 +7,7 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\Admin\CommercialController;
 use App\Http\Controllers\Admin\ExhibitorController;
 use App\Http\Controllers\Admin\EquipmentController;
+use App\Http\Controllers\Admin\EquipmentRequestController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -63,7 +64,25 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/equipements/{equipment}/toggle', [EquipmentController::class, 'toggle'])
     ->whereNumber('equipment')
     ->name('equipements.toggle');
+
+    Route::get('/demandes', [EquipmentRequestController::class, 'index'])
+    ->name('demandes.index');
+
+    Route::get('/demandes/{equipmentRequest}', [EquipmentRequestController::class, 'show'])
+    ->whereNumber('equipmentRequest')
+    ->name('demandes.show');
+
+    Route::patch('/demandes/{equipmentRequest}/approve', [EquipmentRequestController::class, 'approve'])
+    ->whereNumber('equipmentRequest')
+    ->name('demandes.approve');
+
+    Route::patch('/demandes/{equipmentRequest}/reject', [EquipmentRequestController::class, 'reject'])
+    ->whereNumber('equipmentRequest')
+    ->name('demandes.reject');
+
 });
+
+
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::get('/commercial', [App\Http\Controllers\CommercialDashboardController::class, '__invoke'])->name('commercial.index');
     Route::get('/commercial/profil', [CommercialProfileController::class, 'edit'])->name('commercial.profile.edit');

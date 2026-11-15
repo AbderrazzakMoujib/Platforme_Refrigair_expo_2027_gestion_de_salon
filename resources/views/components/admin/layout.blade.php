@@ -34,7 +34,13 @@
     :active="request()->routeIs('admin.equipements.*')"
     :available="true"
 />
-                <x-admin.sidebar-link label="Demandes" icon="inbox" />
+                <x-admin.sidebar-link
+    label="Demandes"
+    icon="inbox"
+    :href="route('admin.demandes.index')"
+    :active="request()->routeIs('admin.demandes.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link label="Statistiques" icon="chart" />
                 <x-admin.sidebar-link label="Notifications" icon="bell" />
                 <x-admin.sidebar-link label="Paramètres" icon="settings" />
@@ -77,7 +83,13 @@
     :active="request()->routeIs('admin.equipements.*')"
     :available="true"
 />
-                                <x-admin.sidebar-link label="Demandes" icon="inbox" />
+                                <x-admin.sidebar-link
+    label="Demandes"
+    icon="inbox"
+    :href="route('admin.demandes.index')"
+    :active="request()->routeIs('admin.demandes.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link label="Statistiques" icon="chart" />
                                 <x-admin.sidebar-link label="Notifications" icon="bell" />
                                 <x-admin.sidebar-link label="Paramètres" icon="settings" />
