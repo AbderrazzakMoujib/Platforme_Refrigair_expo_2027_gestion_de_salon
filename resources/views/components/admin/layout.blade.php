@@ -42,7 +42,12 @@
                         </summary>
                         <div class="absolute left-0 top-12 w-72 rounded-xl bg-[#0F2347] p-3 shadow-xl">
                             <nav class="space-y-1" aria-label="Navigation mobile">
-                                <x-admin.sidebar-link label="Vue globale" icon="overview" :active="true" :available="true" />
+                                <x-admin.sidebar-link
+                                 label="Vue globale"
+                                 icon="overview"
+                                 :href="route('admin.index')"
+                                 :active="request()->routeIs('admin.index')"
+                                 :available="true"/>
                                 <x-admin.sidebar-link label="Salons" icon="calendar" />
                                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
                                 <x-admin.sidebar-link label="Exposants" icon="users" />

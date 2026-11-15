@@ -29,21 +29,54 @@ class AuthenticationTest extends TestCase
         $this->get(route('admin.index'))->assertOk();
     }
 
-    public function test_admin_dashboard_uses_real_user_counts_and_empty_states_for_unbuilt_modules(): void
-    {
-        $admin = User::factory()->create(['role' => 'admin']);
-        User::factory()->count(2)->create(['role' => 'commercial']);
-        User::factory()->count(3)->create(['role' => 'exposant']);
+    
+public function test_admin_dashboard_uses_real_statistics(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
 
-        $this->actingAs($admin)
-            ->get(route('admin.index'))
-            ->assertOk()
-            ->assertViewHas('commercialsCount', 2)
-            ->assertViewHas('exposantsCount', 3)
-            ->assertSee('Aucune donnée de badges disponible')
-            ->assertSee('Aucune donnée de suivi disponible')
-            ->assertSee('Bientôt disponible');
-    }
+    $commercial = User::factory()->create([
+        'role' => 'commercial',
+        'is_active' => true,
+    ]);
+
+    $exhibitor = $commercial->exhibitors()->create([
+        'company_name' => 'Atlas Froid',
+        'contact_name' => 'Mohamed Alami',
+        'email' => 'atlas@example.test',
+        'phone' => '+212600000000',
+        'stand_number' => 'A12',
+        'area_sqm' => 24,
+        'authorized_badges' => 5,
+    ]);
+
+    $exhibitor->badges()->create([
+        'first_name' => 'Mohamed',
+        'last_name' => 'Alami',
+        'function' => 'Manager',
+        'email' => 'mohamed@example.test',
+    ]);
+
+    $exhibitor->badges()->create([
+        'first_name' => 'Sara',
+        'last_name' => 'Bennani',
+        'function' => 'Commerciale',
+        'email' => 'sara@example.test',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.index'))
+        ->assertOk()
+        ->assertViewHas('commercialsCount', 1)
+        ->assertViewHas('exposantsCount', 1)
+        ->assertViewHas('totalAuthorizedBadges', 5)
+        ->assertViewHas('totalRegisteredBadges', 2)
+        ->assertViewHas('remainingBadges', 3)
+        ->assertViewHas('partialExhibitors', 1)
+        ->assertViewHas('badgeProgress', 40.0)
+        ->assertSee('Atlas Froid')
+        ->assertSee('Suivi par commercial');
+}
+
 
     public function test_commercial_dashboard_renders_responsive_empty_states_and_profile_link(): void
     {
