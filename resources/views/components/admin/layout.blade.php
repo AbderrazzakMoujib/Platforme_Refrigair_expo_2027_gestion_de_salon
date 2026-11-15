@@ -16,7 +16,7 @@
             </a>
 
             <nav class="mt-10 space-y-1" aria-label="Navigation principale">
-                <x-admin.sidebar-link label="Vue globale" icon="overview" :active="true" :available="true" />
+                <x-admin.sidebar-link label="Vue globale" icon="overview" :active="request()->routeIs('admin.index')" :available="true" />
                 <x-admin.sidebar-link label="Salons" icon="calendar" />
                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
                 <x-admin.sidebar-link
@@ -27,7 +27,13 @@
     :available="true"
 />
                 <x-admin.sidebar-link label="Badges" icon="badge" />
-                <x-admin.sidebar-link label="Équipements" icon="box" />
+                <x-admin.sidebar-link
+    label="Équipements"
+    icon="box"
+    :href="route('admin.equipements.index')"
+    :active="request()->routeIs('admin.equipements.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link label="Demandes" icon="inbox" />
                 <x-admin.sidebar-link label="Statistiques" icon="chart" />
                 <x-admin.sidebar-link label="Notifications" icon="bell" />
@@ -64,7 +70,13 @@
     :available="true"
 />
                                 <x-admin.sidebar-link label="Badges" icon="badge" />
-                                <x-admin.sidebar-link label="Équipements" icon="box" />
+                                <x-admin.sidebar-link
+    label="Équipements"
+    icon="box"
+    :href="route('admin.equipements.index')"
+    :active="request()->routeIs('admin.equipements.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link label="Demandes" icon="inbox" />
                                 <x-admin.sidebar-link label="Statistiques" icon="chart" />
                                 <x-admin.sidebar-link label="Notifications" icon="bell" />

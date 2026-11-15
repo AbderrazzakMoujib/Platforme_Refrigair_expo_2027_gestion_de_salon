@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\Admin\CommercialController;
 use App\Http\Controllers\Admin\ExhibitorController;
+use App\Http\Controllers\Admin\EquipmentController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -39,9 +40,29 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/exposants', [ExhibitorController::class, 'index'])
     ->name('exposants.index');
 
-Route::get('/exposants/{exhibitor}', [ExhibitorController::class, 'show'])
+    Route::get('/exposants/{exhibitor}', [ExhibitorController::class, 'show'])
     ->whereNumber('exhibitor')
     ->name('exposants.show');
+    Route::get('/equipements', [EquipmentController::class, 'index'])
+    ->name('equipements.index');
+
+    Route::get('/equipements/create', [EquipmentController::class, 'create'])
+    ->name('equipements.create');
+
+     Route::post('/equipements', [EquipmentController::class, 'store'])
+    ->name('equipements.store');
+
+    Route::get('/equipements/{equipment}/edit', [EquipmentController::class, 'edit'])
+    ->whereNumber('equipment')
+    ->name('equipements.edit');
+
+    Route::put('/equipements/{equipment}', [EquipmentController::class, 'update'])
+    ->whereNumber('equipment')
+    ->name('equipements.update');
+
+    Route::patch('/equipements/{equipment}/toggle', [EquipmentController::class, 'toggle'])
+    ->whereNumber('equipment')
+    ->name('equipements.toggle');
 });
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::get('/commercial', [App\Http\Controllers\CommercialDashboardController::class, '__invoke'])->name('commercial.index');

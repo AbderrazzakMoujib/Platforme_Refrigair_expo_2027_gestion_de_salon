@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Exhibitor;
+use App\Models\Equipment;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -458,5 +461,70 @@ public function test_admin_can_list_filter_and_view_all_exhibitors(): void
     $this->get(route('admin.exposants.show', $exhibitor))
         ->assertForbidden();
 }
+
+
+public function test_admin_can_manage_equipment_catalog(): void
+{
+    Storage::fake('public');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $commercial = User::factory()->create(['role' => 'commercial']);
+
+    $payload = [
+        'name' => 'Table ronde',
+        'category' => 'Mobilier',
+        'description' => 'Table pour stand exposant.',
+        'price' => '250.00',
+        'quantity_available' => 10,
+        'is_active' => '1',
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.equipements.store'), [
+            ...$payload,
+            'image' => UploadedFile::fake()->image('table.png'),
+        ])
+        ->assertRedirect(route('admin.equipements.index'));
+
+    $item = Equipment::query()->firstOrFail();
+
+    $this->assertSame('Table ronde', $item->name);
+    $this->assertSame('250.00', $item->price);
+    $this->assertTrue($item->is_active);
+    Storage::disk('public')->assertExists($item->image_path);
+
+    $this->get(route('admin.equipements.index', [
+        'search' => 'Table',
+        'category' => 'Mobilier',
+        'status' => 'active',
+    ]))
+        ->assertOk()
+        ->assertSee('Table ronde');
+
+    $this->put(route('admin.equipements.update', $item), [
+        ...$payload,
+        'name' => 'Table VIP',
+        'price' => '350.00',
+    ])->assertRedirect(route('admin.equipements.index'));
+
+    $this->assertDatabaseHas('equipment', [
+        'id' => $item->id,
+        'name' => 'Table VIP',
+        'price' => '350.00',
+    ]);
+
+    $this->patch(route('admin.equipements.toggle', $item))
+        ->assertRedirect();
+
+    $this->assertFalse($item->fresh()->is_active);
+
+    $this->actingAs($commercial)
+        ->get(route('admin.equipements.index'))
+        ->assertForbidden();
+
+    $this->post(route('admin.equipements.store'), $payload)
+        ->assertForbidden();
+}
+
 
 }
