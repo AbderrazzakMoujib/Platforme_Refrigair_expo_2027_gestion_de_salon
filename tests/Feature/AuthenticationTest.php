@@ -134,7 +134,11 @@ class AuthenticationTest extends TestCase
         $this->get(route('exposant.index'))->assertOk()->assertSee('Compte Test');
         $this->post(route('logout'));
         $other = User::factory()->create(['role'=>'exposant']);
-        $this->actingAs($other)->get(route('exposant.index'))->assertOk()->assertSee('Aucune fiche entreprise associée')->assertDontSee('Compte Test');
+        $this->actingAs($other)
+       ->get(route('exposant.index'))
+       ->assertOk()
+       ->assertSee('Aucune entreprise associée')
+       ->assertDontSee('Compte Test');
         $this->post(route('logout'));
         $this->actingAs($commercial)->patch(route('commercial.exhibitors.access.toggle',$exhibitor))->assertRedirect();
         $this->assertFalse($account->fresh()->is_active);
