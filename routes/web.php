@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\EquipmentRequestController;
 use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\SalonController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -107,6 +108,36 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/parametres/password', [SettingsController::class, 'updatePassword'])
     ->middleware('throttle:5,1')
     ->name('parametres.password');
+
+
+    Route::get('/salons', [SalonController::class, 'index'])
+    ->name('salons.index');
+
+    Route::get('/salons/create', [SalonController::class, 'create'])
+    ->name('salons.create');
+
+    Route::post('/salons', [SalonController::class, 'store'])
+    ->name('salons.store');
+
+    Route::get('/salons/{salon}', [SalonController::class, 'show'])
+    ->whereNumber('salon')
+    ->name('salons.show');
+
+    Route::get('/salons/{salon}/edit', [SalonController::class, 'edit'])
+    ->whereNumber('salon')
+    ->name('salons.edit');
+
+    Route::put('/salons/{salon}', [SalonController::class, 'update'])
+    ->whereNumber('salon')
+    ->name('salons.update');
+
+    Route::patch('/salons/{salon}/registration', [
+    SalonController::class,
+    'toggleRegistration',
+])
+    ->whereNumber('salon')
+    ->name('salons.registration');
+
 
 });
 

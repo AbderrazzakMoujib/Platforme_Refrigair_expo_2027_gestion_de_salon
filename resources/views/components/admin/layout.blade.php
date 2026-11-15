@@ -17,7 +17,13 @@
 
             <nav class="mt-10 space-y-1" aria-label="Navigation principale">
                 <x-admin.sidebar-link label="Vue globale" icon="overview" :active="request()->routeIs('admin.index')" :available="true" />
-                <x-admin.sidebar-link label="Salons" icon="calendar" />
+                <x-admin.sidebar-link
+    label="Salons"
+    icon="calendar"
+    :href="route('admin.salons.index')"
+    :active="request()->routeIs('admin.salons.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
                 <x-admin.sidebar-link
     label="Exposants"
@@ -84,7 +90,13 @@
                                  :href="route('admin.index')"
                                  :active="request()->routeIs('admin.index')"
                                  :available="true"/>
-                                <x-admin.sidebar-link label="Salons" icon="calendar" />
+                                <x-admin.sidebar-link
+    label="Salons"
+    icon="calendar"
+    :href="route('admin.salons.index')"
+    :active="request()->routeIs('admin.salons.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
                                 <x-admin.sidebar-link
     label="Exposants"
