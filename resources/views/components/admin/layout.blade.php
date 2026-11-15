@@ -55,7 +55,13 @@
     :active="request()->routeIs('admin.notifications.*')"
     :available="true"
 />
-                <x-admin.sidebar-link label="Paramètres" icon="settings" />
+                <x-admin.sidebar-link
+    label="Paramètres"
+    icon="settings"
+    :href="route('admin.parametres.index')"
+    :active="request()->routeIs('admin.parametres.*')"
+    :available="true"
+/>
             </nav>
 
             <div class="mt-auto rounded-xl border border-white/10 bg-white/5 p-3 text-xs leading-5 text-blue-100">
@@ -116,7 +122,13 @@
     :active="request()->routeIs('admin.notifications.*')"
     :available="true"
 />
-                                <x-admin.sidebar-link label="Paramètres" icon="settings" />
+                                <x-admin.sidebar-link
+    label="Paramètres"
+    icon="settings"
+    :href="route('admin.parametres.index')"
+    :active="request()->routeIs('admin.parametres.*')"
+    :available="true"
+/>
                             </nav>
                         </div>
                     </details>

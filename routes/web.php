@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\EquipmentController;
 use App\Http\Controllers\Admin\EquipmentRequestController;
 use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\Admin\NotificationController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -96,6 +97,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
     ->name('notifications.read');
+
+    Route::get('/parametres', [SettingsController::class, 'edit'])
+    ->name('parametres.index');
+
+    Route::put('/parametres/profil', [SettingsController::class, 'updateProfile'])
+    ->name('parametres.profil');
+
+    Route::put('/parametres/password', [SettingsController::class, 'updatePassword'])
+    ->middleware('throttle:5,1')
+    ->name('parametres.password');
 
 });
 
