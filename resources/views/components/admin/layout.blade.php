@@ -48,7 +48,13 @@
     :active="request()->routeIs('admin.statistiques.*')"
     :available="true"
 />
-                <x-admin.sidebar-link label="Notifications" icon="bell" />
+                <x-admin.sidebar-link
+    label="Notifications"
+    icon="bell"
+    :href="route('admin.notifications.index')"
+    :active="request()->routeIs('admin.notifications.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link label="Paramètres" icon="settings" />
             </nav>
 
@@ -103,7 +109,13 @@
     :active="request()->routeIs('admin.statistiques.*')"
     :available="true"
 />
-                                <x-admin.sidebar-link label="Notifications" icon="bell" />
+                                <x-admin.sidebar-link
+    label="Notifications"
+    icon="bell"
+    :href="route('admin.notifications.index')"
+    :active="request()->routeIs('admin.notifications.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link label="Paramètres" icon="settings" />
                             </nav>
                         </div>
@@ -112,10 +124,23 @@
                     <p class="hidden text-sm font-medium text-slate-500 sm:block">Administration Refrigair Expo 2027</p>
 
                     <div class="ml-auto flex items-center gap-2 sm:gap-4">
-                        <button type="button" disabled title="Aucune notification disponible" class="relative grid size-10 cursor-not-allowed place-items-center rounded-lg text-slate-400" aria-label="Notifications bientôt disponibles">
-                            <x-admin.icon name="bell" class="size-5" />
-                            <span class="absolute right-2 top-2 size-1.5 rounded-full bg-slate-300"></span>
-                        </button>
+                        @php
+    $unreadNotificationsCount = $admin->unreadNotifications()->count();
+@endphp
+
+<a href="{{ route('admin.notifications.index') }}"
+   class="relative grid size-10 place-items-center rounded-lg text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+   aria-label="Notifications : {{ $unreadNotificationsCount }} non lues"
+   title="Voir les notifications">
+
+    <x-admin.icon name="bell" class="size-5" />
+
+    @if ($unreadNotificationsCount > 0)
+        <span class="absolute -right-1 -top-1 grid min-w-5 h-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+            {{ $unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount }}
+        </span>
+    @endif
+</a>
                         <div class="hidden text-right sm:block">
                             <p class="text-sm font-semibold text-slate-800">{{ $admin->name }}</p>
                             <p class="text-xs text-slate-500">Administrateur</p>

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ExhibitorController;
 use App\Http\Controllers\Admin\EquipmentController;
 use App\Http\Controllers\Admin\EquipmentRequestController;
 use App\Http\Controllers\Admin\StatisticsController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +84,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('/statistiques', StatisticsController::class)
     ->name('statistiques.index');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])
+    ->name('notifications.index');
+
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
+    ->name('notifications.read-all');
+
+    Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])
+    ->name('notifications.open');
+
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
+    ->name('notifications.read');
 
 });
 

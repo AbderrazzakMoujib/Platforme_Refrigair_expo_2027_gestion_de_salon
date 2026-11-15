@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\User;
+use App\Notifications\NewEquipmentRequestNotification;
+use Illuminate\Support\Facades\Notification;
 
 class EquipmentRequest extends Model
 {
@@ -40,4 +43,20 @@ class EquipmentRequest extends Model
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
+
+    protected static function booted(): void
+   {
+    static::created(function (EquipmentRequest $order): void {
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->where('is_active', true)
+            ->get();
+
+        Notification::send(
+            $admins,
+            new NewEquipmentRequestNotification($order)
+        );
+    });
+   }
+
 }
