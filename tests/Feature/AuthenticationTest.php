@@ -53,7 +53,9 @@ class AuthenticationTest extends TestCase
             ->assertOk()
             ->assertSee('Bonjour, '.$commercial->name)
             ->assertSee('Mes derniers exposants')
-            ->assertSee('Aucune donnée de badges disponible')
+            ->assertViewHas('totalRegisteredBadges', 0)
+            ->assertViewHas('badgeProgress', 0)
+            ->assertSee('Progression générale des badges')
             ->assertSee(route('commercial.profile.edit'))
             ->assertSee('assets/images/icons/favicon_io.png');
     }
