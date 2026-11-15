@@ -152,7 +152,7 @@ class AuthenticationTest extends TestCase
         $badge=$profile->badges()->firstOrFail();
         $this->post(route('exhibitor.badges.store'),[...$body,'email'=>'second@badge.test'])->assertStatus(422);
         $this->actingAs($other)->get(route('exhibitor.badges.edit',$badge))->assertForbidden();
-        $this->delete(route('exhibitor.badges.destroy',$badge))->assertRedirect();
+        $this->delete(route('exhibitor.badges.destroy',$badge))->assertForbidden();
     }
 
     public function test_admin_must_provide_initial_password_when_creating_commercial(): void

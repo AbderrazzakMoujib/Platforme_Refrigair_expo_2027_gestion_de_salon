@@ -1,0 +1,109 @@
+--- a/app/Http/Controllers/ExhibitorBadgeController.php
++++ b/app/Http/Controllers/ExhibitorBadgeController.php
+@@ -1,3 +1,3 @@
+     public function create(Request $request): View { $e=$this->profile($request); abort_if($e->badges()->count()>=$e->authorized_badges,422); return view('exhibitor.badges.form',['user'=>$request->user(),'badge'=>new Badge,'action'=>route('exhibitor.badges.store'),'method'=>null]); }
+-    public function store(Request $request): RedirectResponse { $e=$this->profile($request); $data=$request->validate(['first_name'=>['required','string','max:255'],'last_name'=>['required','string','max:255'],'function'=>['required','string','max:255'],'email'=>['required','email','max:255'],'phone'=>['nullable','string','max:40']]); DB::transaction(function()use($e,$data){$locked=$e->newQuery()->lockForUpdate()->findOrFail($e->id); if($locked->badges()->count()>$locked->authorized_badges) abort(422,'Quota dyal badges salat.'); $locked->badges()->create($data);}); return redirect()->route('exhibitor.badges.index')->with('status','Badge ajouté.'); }
++    public function store(Request $request): RedirectResponse { $e=$this->profile($request); $data=$request->validate(['first_name'=>['required','string','max:255'],'last_name'=>['required','string','max:255'],'function'=>['required','string','max:255'],'email'=>['required','email','max:255'],'phone'=>['nullable','string','max:40']]); DB::transaction(function()use($e,$data){$locked=$e->newQuery()->lockForUpdate()->findOrFail($e->id); if($locked->badges()->count()>=$locked->authorized_badges) abort(422,'Quota dyal badges salat.'); $locked->badges()->create($data);}); return redirect()->route('exhibitor.badges.index')->with('status','Badge ajouté.'); }
+     private function owns(Request $request, Badge $badge): void { abort_unless($request->user()->exhibitorProfile()->whereKey($badge->exhibitor_id)->exists(),403); }
+--- a/tests/Feature/AuthenticationTest.php
++++ b/tests/Feature/AuthenticationTest.php
+@@ -1,4 +1,4 @@
+         $this->post(route('exhibitor.badges.store'),[...$body,'email'=>'second@badge.test'])->assertStatus(422);
+         $this->actingAs($other)->get(route('exhibitor.badges.edit',$badge))->assertForbidden();
+-        $this->delete(route('exhibitor.badges.destroy',$badge))->assertRedirect();
++        $this->delete(route('exhibitor.badges.destroy',$badge))->assertForbidden();
+     }
+--- /dev/null
++++ b/tests/Feature/BadgeManagementTest.php
+@@ -0,0 +1,91 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Models\Exhibitor;
++use App\Models\User;
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Tests\TestCase;
++
++class BadgeManagementTest extends TestCase
++{
++    use RefreshDatabase;
++
++    private function exhibitorFor(User $user, int $quota = 2): Exhibitor
++    {
++        $commercial = User::factory()->create(['role' => 'commercial']);
++        $exhibitor = $commercial->exhibitors()->create([
++            'company_name' => 'Expo Test',
++            'contact_name' => 'Contact Test',
++            'email' => 'contact'. $user->id .'@example.test',
++            'phone' => '+212600000000',
++            'stand_number' => 'A12',
++            'area_sqm' => 12,
++            'authorized_badges' => $quota,
++        ]);
++        $user->exhibitorProfile()->save($exhibitor);
++
++        return $exhibitor;
++    }
++
++    private function badgeData(string $email): array
++    {
++        return [
++            'first_name' => 'Sara', 'last_name' => 'Test',
++            'function' => 'Responsable', 'email' => $email,
++            'phone' => '+212600000001',
++        ];
++    }
++
++    public function test_owner_can_create_update_and_delete_badges_within_quota(): void
++    {
++        $owner = User::factory()->create(['role' => 'exposant']);
++        $exhibitor = $this->exhibitorFor($owner, 2);
++        $this->actingAs($owner);
++
++        $this->get(route('exhibitor.badges.index'))->assertOk();
++        $this->get(route('exhibitor.badges.create'))->assertOk();
++        $this->post(route('exhibitor.badges.store'), $this->badgeData('one@example.test'))
++            ->assertRedirect(route('exhibitor.badges.index'));
++        $badge = $exhibitor->badges()->firstOrFail();
++        $this->get(route('exhibitor.badges.edit', $badge))->assertOk();
++        $this->put(route('exhibitor.badges.update', $badge), $this->badgeData('updated@example.test'))
++            ->assertRedirect();
++        $this->assertDatabaseHas('badges', ['id' => $badge->id, 'email' => 'updated@example.test']);
++        $this->delete(route('exhibitor.badges.destroy', $badge))->assertRedirect();
++        $this->assertDatabaseMissing('badges', ['id' => $badge->id]);
++    }
++
++    public function test_quota_is_enforced_at_exact_limit_and_zero_quota(): void
++    {
++        $owner = User::factory()->create(['role' => 'exposant']);
++        $exhibitor = $this->exhibitorFor($owner, 1);
++        $this->actingAs($owner);
++        $this->post(route('exhibitor.badges.store'), $this->badgeData('one@example.test'))
++            ->assertRedirect();
++        $this->post(route('exhibitor.badges.store'), $this->badgeData('two@example.test'))
++            ->assertStatus(422);
++        $this->assertSame(1, $exhibitor->badges()->count());
++        $exhibitor->update(['authorized_badges' => 0]);
++        $this->post(route('exhibitor.badges.store'), $this->badgeData('three@example.test'))
++            ->assertStatus(422);
++        $this->assertSame(1, $exhibitor->badges()->count());
++    }
++
++    public function test_other_exhibitor_cannot_view_edit_update_or_delete_badge(): void
++    {
++        $owner = User::factory()->create(['role' => 'exposant']);
++        $other = User::factory()->create(['role' => 'exposant']);
++        $exhibitor = $this->exhibitorFor($owner, 2);
++        $this->exhibitorFor($other, 2);
++        $badge = $exhibitor->badges()->create($this->badgeData('private@example.test'));
++
++        $this->actingAs($other)->get(route('exhibitor.badges.index'))
++            ->assertOk()->assertDontSee('private@example.test');
++        $this->get(route('exhibitor.badges.edit', $badge))->assertForbidden();
++        $this->put(route('exhibitor.badges.update', $badge), $this->badgeData('hacked@example.test'))
++            ->assertForbidden();
++        $this->delete(route('exhibitor.badges.destroy', $badge))->assertForbidden();
++        $this->assertDatabaseHas('badges', ['id' => $badge->id, 'email' => 'private@example.test']);
++    }
++}
