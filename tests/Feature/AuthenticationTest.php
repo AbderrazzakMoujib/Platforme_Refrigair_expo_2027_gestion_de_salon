@@ -400,4 +400,63 @@ public function test_admin_dashboard_uses_real_statistics(): void
     {
         $this->get('/register')->assertNotFound();
     }
+
+
+public function test_admin_can_list_filter_and_view_all_exhibitors(): void
+{
+    $admin = User::factory()->create(['role' => 'admin']);
+    $commercial = User::factory()->create(['role' => 'commercial']);
+
+    $exhibitor = $commercial->exhibitors()->create([
+        'company_name' => 'Atlas Froid',
+        'contact_name' => 'Sara Alami',
+        'email' => 'atlas@example.test',
+        'phone' => '+212600000000',
+        'stand_number' => 'A12',
+        'area_sqm' => 24,
+        'authorized_badges' => 3,
+    ]);
+
+    $exhibitor->badges()->create([
+        'first_name' => 'Sara',
+        'last_name' => 'Alami',
+        'function' => 'Directrice',
+        'email' => 'sara@example.test',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.exposants.index'))
+        ->assertOk()
+        ->assertSee('Atlas Froid')
+        ->assertSee('Sara Alami');
+
+    $this->get(route('admin.exposants.index', [
+        'search' => 'Atlas',
+        'commercial_id' => $commercial->id,
+        'status' => 'partial',
+    ]))
+        ->assertOk()
+        ->assertSee('Atlas Froid');
+
+    $this->get(route('admin.exposants.index', [
+        'status' => 'complete',
+    ]))
+        ->assertOk()
+        ->assertDontSee('Atlas Froid');
+
+    $this->get(route('admin.exposants.show', $exhibitor))
+        ->assertOk()
+        ->assertSee('Atlas Froid')
+       ->assertSee('Sara Alami')
+->assertSee('Badges autorisés')
+->assertSee('Badges enregistrés');
+
+    $this->actingAs($commercial)
+        ->get(route('admin.exposants.index'))
+        ->assertForbidden();
+
+    $this->get(route('admin.exposants.show', $exhibitor))
+        ->assertForbidden();
+}
+
 }

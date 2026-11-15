@@ -5,10 +5,12 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\Admin\CommercialController;
+use App\Http\Controllers\Admin\ExhibitorController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -34,6 +36,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/commerciaux/{commercial}', [CommercialController::class, 'show'])->whereNumber('commercial')->name('commerciaux.show');
     Route::get('/commerciaux/{commercial}/edit', [CommercialController::class, 'edit'])->whereNumber('commercial')->name('commerciaux.edit');
     Route::put('/commerciaux/{commercial}', [CommercialController::class, 'update'])->whereNumber('commercial')->name('commerciaux.update');
+    Route::get('/exposants', [ExhibitorController::class, 'index'])
+    ->name('exposants.index');
+
+Route::get('/exposants/{exhibitor}', [ExhibitorController::class, 'show'])
+    ->whereNumber('exhibitor')
+    ->name('exposants.show');
 });
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::get('/commercial', [App\Http\Controllers\CommercialDashboardController::class, '__invoke'])->name('commercial.index');

@@ -19,7 +19,13 @@
                 <x-admin.sidebar-link label="Vue globale" icon="overview" :active="true" :available="true" />
                 <x-admin.sidebar-link label="Salons" icon="calendar" />
                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
-                <x-admin.sidebar-link label="Exposants" icon="users" />
+                <x-admin.sidebar-link
+    label="Exposants"
+    icon="users"
+    :href="route('admin.exposants.index')"
+    :active="request()->routeIs('admin.exposants.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link label="Badges" icon="badge" />
                 <x-admin.sidebar-link label="Équipements" icon="box" />
                 <x-admin.sidebar-link label="Demandes" icon="inbox" />
@@ -50,7 +56,13 @@
                                  :available="true"/>
                                 <x-admin.sidebar-link label="Salons" icon="calendar" />
                                 <x-admin.sidebar-link label="Commerciaux" icon="users" :href="route('admin.commerciaux.index')" :active="request()->routeIs('admin.commerciaux.*')" :available="true" />
-                                <x-admin.sidebar-link label="Exposants" icon="users" />
+                                <x-admin.sidebar-link
+    label="Exposants"
+    icon="users"
+    :href="route('admin.exposants.index')"
+    :active="request()->routeIs('admin.exposants.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link label="Badges" icon="badge" />
                                 <x-admin.sidebar-link label="Équipements" icon="box" />
                                 <x-admin.sidebar-link label="Demandes" icon="inbox" />
