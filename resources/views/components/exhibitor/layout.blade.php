@@ -9,8 +9,11 @@
 
     <title>{{ $title ?? 'Espace Exposant | Refrigair Expo 2027' }}</title>
 
-    <link rel="icon" type="image/png"
-          href="{{ asset('assets/images/icons/favicon_io.png') }}">
+    <link
+        rel="icon"
+        type="image/png"
+        href="{{ asset('assets/images/icons/favicon_io.png') }}"
+    >
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -20,9 +23,11 @@
     <!-- SIDEBAR DESKTOP -->
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-[#0F2347] px-5 py-6 md:flex">
 
-        <a href="{{ route('exposant.index') }}"
-           class="flex min-h-16 items-center justify-center px-2">
-
+        <!-- LOGO -->
+        <a
+            href="{{ route('exposant.index') }}"
+            class="flex min-h-16 items-center justify-center px-2"
+        >
             <img
                 src="{{ asset('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-Sans-titre-4-removebg-preview.png') }}"
                 alt="Refrigair Expo 2027"
@@ -30,56 +35,83 @@
             >
         </a>
 
+        <!-- NAVIGATION -->
         <nav class="mt-12 space-y-2" aria-label="Navigation Exposant">
 
-            <a href="{{ route('exposant.index') }}"
-               @class([
-                   'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
-                   'bg-white/15 text-white' => request()->routeIs('exposant.index'),
-                   'text-blue-100 hover:bg-white/10' => !request()->routeIs('exposant.index'),
-               ])>
-                <span>▦</span>
+            <!-- VUE GLOBALE -->
+            <a
+                href="{{ route('exposant.index') }}"
+                @class([
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+                    'bg-white/15 text-white' => request()->routeIs('exposant.index'),
+                    'text-blue-100 hover:bg-white/10' => !request()->routeIs('exposant.index'),
+                ])
+            >
+                <span aria-hidden="true">▦</span>
                 <span>Vue globale</span>
             </a>
 
-            <a href="{{ route('exhibitor.badges.index') }}"
-               @class([
-                   'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
-                   'bg-white/15 text-white' => request()->routeIs('exhibitor.badges.*'),
-                   'text-blue-100 hover:bg-white/10' => !request()->routeIs('exhibitor.badges.*'),
-               ])>
-                <span>▤</span>
+            <!-- MES BADGES -->
+            <a
+                href="{{ route('exhibitor.badges.index') }}"
+                @class([
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+                    'bg-white/15 text-white' => request()->routeIs('exhibitor.badges.*'),
+                    'text-blue-100 hover:bg-white/10' => !request()->routeIs('exhibitor.badges.*'),
+                ])
+            >
+                <span aria-hidden="true">▤</span>
                 <span>Mes badges</span>
             </a>
 
-            <a href="{{ route('exposant.index') }}#mon-stand"
-               class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-blue-100 hover:bg-white/10">
-                <span>▣</span>
+            <!-- MON STAND -->
+            <a
+                href="{{ route('exposant.index') }}#mon-stand"
+                class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-blue-100 transition hover:bg-white/10"
+            >
+                <span aria-hidden="true">▣</span>
                 <span>Mon stand</span>
             </a>
 
-            <div class="flex items-center justify-between rounded-xl px-4 py-3 text-sm text-blue-200/60"
-                 aria-disabled="true">
+            <!-- OPTIONS DU STAND -->
+            <a
+                href="{{ route('exhibitor.stand-options.index') }}"
+                @class([
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+                    'bg-white/15 text-white' => request()->routeIs('exhibitor.stand-options.*') && !request()->has('demandes'),
+                    'text-blue-100 hover:bg-white/10' => !request()->routeIs('exhibitor.stand-options.*') || request()->has('demandes'),
+                ])
+            >
+                <span aria-hidden="true">◈</span>
                 <span>Options du stand</span>
-                <span class="rounded bg-white/10 px-2 py-1 text-[10px]">BIENTÔT</span>
-            </div>
+            </a>
 
-            <div class="flex items-center justify-between rounded-xl px-4 py-3 text-sm text-blue-200/60"
-                 aria-disabled="true">
+            <!-- MES DEMANDES -->
+            <a
+                href="{{ route('exhibitor.stand-options.index', ['demandes' => 1]) }}#mes-demandes"
+                @class([
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+                    'bg-white/15 text-white' => request()->routeIs('exhibitor.stand-options.index') && request()->has('demandes'),
+                    'text-blue-100 hover:bg-white/10' => !request()->routeIs('exhibitor.stand-options.index') || !request()->has('demandes'),
+                ])
+            >
+                <span aria-hidden="true">▤</span>
                 <span>Mes demandes</span>
-                <span class="rounded bg-white/10 px-2 py-1 text-[10px]">BIENTÔT</span>
-            </div>
+            </a>
 
         </nav>
 
+        <!-- HELP SECTION -->
         <div class="mt-auto rounded-xl border border-white/10 bg-white/5 p-4">
             <p class="text-sm font-semibold text-white">
                 Besoin d'aide ?
             </p>
+
             <p class="mt-2 text-xs leading-5 text-blue-200">
                 Contactez l'organisation de Refrigair Expo.
             </p>
         </div>
+
     </aside>
 
     <!-- MAIN AREA -->
@@ -92,39 +124,70 @@
 
                 <!-- MOBILE MENU -->
                 <details class="relative md:hidden">
-                    <summary class="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-xl">
+                    <summary
+                        class="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-xl"
+                        aria-label="Ouvrir le menu de navigation"
+                    >
                         ☰
                     </summary>
 
-                    <nav class="absolute left-0 top-12 z-50 w-64 space-y-2 rounded-xl bg-[#0F2347] p-4 text-sm text-white shadow-xl">
+                    <nav
+                        class="absolute left-0 top-12 z-50 w-64 space-y-2 rounded-xl bg-[#0F2347] p-4 text-sm text-white shadow-xl"
+                        aria-label="Navigation mobile Exposant"
+                    >
 
-                        <a class="block rounded-lg px-3 py-3 hover:bg-white/10"
-                           href="{{ route('exposant.index') }}">
+                        <!-- VUE GLOBALE -->
+                        <a
+                            href="{{ route('exposant.index') }}"
+                            class="block rounded-lg px-3 py-3 hover:bg-white/10"
+                        >
                             Vue globale
                         </a>
 
-                        <a class="block rounded-lg px-3 py-3 hover:bg-white/10"
-                           href="{{ route('exhibitor.badges.index') }}">
+                        <!-- MES BADGES -->
+                        <a
+                            href="{{ route('exhibitor.badges.index') }}"
+                            class="block rounded-lg px-3 py-3 hover:bg-white/10"
+                        >
                             Mes badges
                         </a>
 
-                        <a class="block rounded-lg px-3 py-3 hover:bg-white/10"
-                           href="{{ route('exposant.index') }}#mon-stand">
+                        <!-- MON STAND -->
+                        <a
+                            href="{{ route('exposant.index') }}#mon-stand"
+                            class="block rounded-lg px-3 py-3 hover:bg-white/10"
+                        >
                             Mon stand
                         </a>
 
-                        <span class="block px-3 py-3 text-blue-200/60">
-                            Options du stand — Bientôt
-                        </span>
+                        <!-- OPTIONS DU STAND -->
+                        <a
+                            href="{{ route('exhibitor.stand-options.index') }}"
+                            class="block rounded-lg px-3 py-3 hover:bg-white/10"
+                        >
+                            Options du stand
+                        </a>
+
+                        <!-- MES DEMANDES -->
+                        <a
+                            href="{{ route('exhibitor.stand-options.index', ['demandes' => 1]) }}#mes-demandes"
+                            class="block rounded-lg px-3 py-3 hover:bg-white/10"
+                        >
+                            Mes demandes
+                        </a>
+
                     </nav>
                 </details>
 
+                <!-- PAGE NAME -->
                 <p class="hidden text-sm font-medium text-slate-500 sm:block">
                     Espace Exposant · Refrigair Expo 2027
                 </p>
 
+                <!-- USER AREA -->
                 <div class="ml-auto flex items-center gap-3 sm:gap-5">
 
+                    <!-- USER DETAILS -->
                     <div class="hidden text-right sm:block">
                         <p class="text-sm font-semibold text-slate-800">
                             {{ $user->name }}
@@ -135,20 +198,31 @@
                         </p>
                     </div>
 
-                    <span class="flex size-10 items-center justify-center rounded-full bg-[#0F2347] text-sm font-bold text-white">
+                    <!-- USER AVATAR -->
+                    <span
+                        class="flex size-10 items-center justify-center rounded-full bg-[#0F2347] text-sm font-bold text-white"
+                        aria-label="Profil utilisateur"
+                    >
                         {{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}
                     </span>
 
-                    <form method="POST" action="{{ route('logout') }}">
+                    <!-- LOGOUT -->
+                    <form
+                        method="POST"
+                        action="{{ route('logout') }}"
+                    >
                         @csrf
 
-                        <button type="submit"
-                                class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-600">
-                            Logout
+                        <button
+                            type="submit"
+                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                            Déconnexion
                         </button>
                     </form>
 
                 </div>
+
             </div>
         </header>
 

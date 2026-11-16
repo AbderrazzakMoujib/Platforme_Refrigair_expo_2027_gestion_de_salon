@@ -213,9 +213,12 @@
                     <p>• Autres équipements</p>
                 </div>
 
-                <div class="mt-7 rounded-xl bg-slate-50 px-4 py-3 text-center text-sm font-medium text-slate-500">
-                    Catalogue bientôt disponible
-                </div>
+                <a href="{{ route('exhibitor.stand-options.index') }}"
+                class="mt-7 block rounded-xl bg-blue-600 px-5 py-3
+              text-center text-sm font-semibold text-white
+              transition hover:bg-blue-700">
+                    Consulter les options du stand
+                </a>
 
             </article>
 

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SalonController;
 use App\Http\Controllers\Admin\BadgeController;
+use App\Http\Controllers\ExhibitorStandOptionsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -213,4 +214,14 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');
     Route::resource('/exposant/badges', ExhibitorBadgeController::class)->except(['show'])->names('exhibitor.badges');
+    Route::get(
+    '/exposant/options-du-stand',
+    [ExhibitorStandOptionsController::class, 'index']
+    )->name('exhibitor.stand-options.index');
+
+    Route::post(
+    '/exposant/options-du-stand',
+    [ExhibitorStandOptionsController::class, 'store']
+    )->name('exhibitor.stand-options.store');
+    
 });
