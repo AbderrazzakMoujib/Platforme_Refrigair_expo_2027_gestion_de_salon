@@ -32,7 +32,13 @@
     :active="request()->routeIs('admin.exposants.*')"
     :available="true"
 />
-                <x-admin.sidebar-link label="Badges" icon="badge" />
+                <x-admin.sidebar-link
+    label="Badges"
+    icon="badge"
+    :href="route('admin.badges.index')"
+    :active="request()->routeIs('admin.badges.*')"
+    :available="true"
+/>
                 <x-admin.sidebar-link
     label="Équipements"
     icon="box"
@@ -105,7 +111,13 @@
     :active="request()->routeIs('admin.exposants.*')"
     :available="true"
 />
-                                <x-admin.sidebar-link label="Badges" icon="badge" />
+                                <x-admin.sidebar-link
+    label="Badges"
+    icon="badge"
+    :href="route('admin.badges.index')"
+    :active="request()->routeIs('admin.badges.*')"
+    :available="true"
+/>
                                 <x-admin.sidebar-link
     label="Équipements"
     icon="box"

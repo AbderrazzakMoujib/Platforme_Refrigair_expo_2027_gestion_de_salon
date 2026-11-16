@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\StatisticsController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SalonController;
+use App\Http\Controllers\Admin\BadgeController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use Illuminate\Support\Facades\Route;
@@ -134,9 +135,63 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/salons/{salon}/registration', [
     SalonController::class,
     'toggleRegistration',
-])
+     ])
     ->whereNumber('salon')
     ->name('salons.registration');
+
+
+    Route::get('/badges/print-selected', [
+    BadgeController::class, 'printSelected',
+     ])->name('badges.print-selected');
+
+    Route::get('/badges/export', [
+    BadgeController::class, 'export',
+     ])->name('badges.export');
+
+    Route::get('/badges/verify/{token}', [
+    BadgeController::class, 'verify',
+     ])->whereUuid('token')->name('badges.verify');
+
+    Route::get('/badges', [
+    BadgeController::class, 'index',
+     ])->name('badges.index');
+
+    Route::get('/badges/create', [
+    BadgeController::class, 'create',
+     ])->name('badges.create');
+
+    Route::post('/badges', [
+    BadgeController::class, 'store',
+     ])->name('badges.store');
+
+    Route::patch('/badges/exhibitors/{exhibitor}/quota', [
+    BadgeController::class, 'updateQuota',
+     ])->whereNumber('exhibitor')->name('badges.quota');
+
+    Route::get('/badges/{badge}', [
+    BadgeController::class, 'show',
+     ])->whereNumber('badge')->name('badges.show');
+
+    Route::get('/badges/{badge}/edit', [
+    BadgeController::class, 'edit',
+     ])->whereNumber('badge')->name('badges.edit');
+
+    Route::put('/badges/{badge}', [
+    BadgeController::class, 'update',
+     ])->whereNumber('badge')->name('badges.update');
+
+    Route::patch('/badges/{badge}/toggle', [
+    BadgeController::class, 'toggle',
+     ])->whereNumber('badge')->name('badges.toggle');
+
+    Route::delete('/badges/{badge}', [
+    BadgeController::class, 'destroy',
+     ])->whereNumber('badge')->name('badges.destroy');
+
+    Route::get('/badges/{badge}/print', [
+    BadgeController::class, 'print',
+     ])->whereNumber('badge')->name('badges.print');
+
 
 
 });

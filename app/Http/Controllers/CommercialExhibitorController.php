@@ -108,13 +108,36 @@ class CommercialExhibitorController extends Controller
         ]);
     }
 
-    public function update(Request $request, Exhibitor $exhibitor): RedirectResponse
-    {
-        $exhibitor = $this->ownedBy($request, $exhibitor);
-        $exhibitor->update($this->validated($request));
+    
+public function update(
+    Request $request,
+    Exhibitor $exhibitor
+): RedirectResponse {
+    $exhibitor = $this->ownedBy($request, $exhibitor);
+    $validated = $this->validated($request);
 
-        return redirect()->route('commercial.exhibitors.show', $exhibitor)->with('status', 'Informations de l’exposant mises à jour.');
-    }
+    DB::transaction(function () use ($exhibitor, $validated) {
+        $locked = Exhibitor::query()
+            ->lockForUpdate()
+            ->findOrFail($exhibitor->id);
+
+        $used = $locked->badges()->count();
+
+        if ($validated['authorized_badges'] < $used) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'authorized_badges' =>
+                    "Impossible de réduire le quota : {$used} badges sont déjà enregistrés.",
+            ]);
+        }
+
+        $locked->update($validated);
+    });
+
+    return redirect()
+        ->route('commercial.exhibitors.show', $exhibitor)
+        ->with('status', 'Informations de l’exposant mises à jour.');
+}
+
 
     private function ownedBy(Request $request, Exhibitor $exhibitor): Exhibitor
     {
