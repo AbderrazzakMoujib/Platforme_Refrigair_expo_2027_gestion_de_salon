@@ -36,8 +36,8 @@ class AdminSalonsTest extends TestCase
             ->assertSee('Gestion des salons');
 
         $this->get(route('admin.salons.create'))
-            ->assertOk()
-            ->assertSee('Créer un salon');
+    ->assertOk()
+    ->assertSee('Ajouter un salon');
 
         $this->post(
             route('admin.salons.store'),

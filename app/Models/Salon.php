@@ -19,6 +19,7 @@ class Salon extends Model
         'description',
         'status',
         'registration_open',
+        'cover_image',
     ];
 
     protected function casts(): array

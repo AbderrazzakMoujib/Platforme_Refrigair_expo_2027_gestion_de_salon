@@ -39,6 +39,22 @@
         </div>
     @endif
 
+
+
+
+@if ($salon->cover_image)
+    <div class="mt-6 flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <img
+            src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($salon->cover_image) }}"
+            alt="Couverture du salon {{ $salon->name }}"
+            class="block h-auto max-h-[650px] max-w-full rounded-xl object-contain"
+        >
+    </div>
+@endif
+
+
+
+
     <section class="mt-8 grid gap-6 lg:grid-cols-3">
         <article class="rounded-2xl bg-white p-7 shadow-sm ring-1 ring-slate-200 lg:col-span-2">
             <h2 class="text-lg font-bold text-slate-900">
@@ -89,14 +105,23 @@
                 </div>
             </dl>
 
-            <div class="mt-7 border-t border-slate-100 pt-6">
-                <h3 class="font-semibold text-slate-800">
-                    Description
-                </h3>
-                <p class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-600">
-                    {{ $salon->description ?: 'Aucune description renseignée.' }}
-                </p>
-            </div>
+            
+<div class="mt-7 border-t border-slate-100 pt-6">
+    <h3 class="font-semibold text-slate-800">
+        Description
+    </h3>
+
+    <div class="mt-3 whitespace-normal text-sm leading-7 text-slate-600">
+        {!! \Illuminate\Support\Str::markdown(
+            $salon->description ?: 'Aucune description renseignée.',
+            [
+                'html_input' => 'strip',
+                'allow_unsafe_links' => false,
+            ]
+        ) !!}
+    </div>
+</div>
+
         </article>
 
         <aside class="space-y-6">

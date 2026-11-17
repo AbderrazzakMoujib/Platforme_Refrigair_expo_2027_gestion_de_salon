@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Salon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,16 +136,24 @@ $years = Salon::query()
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
-    {
-        $data = $this->validated($request);
+    
+public function store(Request $request): RedirectResponse
+{
+    $data = $this->validated($request);
 
-        $salon = Salon::create($data);
-
-        return redirect()
-            ->route('admin.salons.show', $salon)
-            ->with('status', 'Salon créé avec succès.');
+    if ($request->hasFile('cover_image')) {
+        $data['cover_image'] = $request
+            ->file('cover_image')
+            ->store('salons', 'public');
     }
+
+    $salon = Salon::create($data);
+
+    return redirect()
+        ->route('admin.salons.show', $salon)
+        ->with('status', 'Salon créé avec succès.');
+}
+
 
     public function show(
         Request $request,
@@ -175,16 +184,37 @@ $years = Salon::query()
         ]);
     }
 
-    public function update(
-        Request $request,
-        Salon $salon
-    ): RedirectResponse {
-        $salon->update($this->validated($request));
+    
+public function update(
+    Request $request,
+    Salon $salon
+): RedirectResponse {
+    $data = $this->validated($request);
 
-        return redirect()
-            ->route('admin.salons.show', $salon)
-            ->with('status', 'Salon modifié avec succès.');
+    $oldImage = $salon->cover_image;
+
+    if ($request->hasFile('cover_image')) {
+        $data['cover_image'] = $request
+            ->file('cover_image')
+            ->store('salons', 'public');
+    } elseif ($request->boolean('remove_cover_image')) {
+        $data['cover_image'] = null;
     }
+
+    $salon->update($data);
+
+    if (
+        $oldImage &&
+        $oldImage !== $salon->cover_image
+    ) {
+        Storage::disk('public')->delete($oldImage);
+    }
+
+    return redirect()
+        ->route('admin.salons.show', $salon)
+        ->with('status', 'Salon modifié avec succès.');
+}
+
 
     public function toggleRegistration(
         Salon $salon
@@ -216,6 +246,19 @@ $years = Salon::query()
     private function validated(Request $request): array
     {
         $data = $request->validate([
+
+            'cover_image' => [
+    'nullable',
+    'image',
+    'mimes:jpg,jpeg,png,webp',
+    'max:5120',
+],
+
+'remove_cover_image' => [
+    'nullable',
+    'boolean',
+],
+
             'name' => [
                 'required',
                 'string',
