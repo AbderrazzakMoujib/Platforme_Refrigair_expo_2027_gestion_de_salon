@@ -1,53 +1,228 @@
+
 <x-admin.layout :admin="$admin" :admin-initials="$adminInitials">
-    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-            <p class="text-sm font-semibold text-[#2563EB]">Gestion</p>
-            <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Commerciaux</h1>
-            <p class="mt-2 text-sm text-slate-500">Gérez les comptes commerciaux de la plateforme.</p>
+
+<div class="space-y-7">
+
+    <!-- HEADER -->
+    <nav class="flex gap-2 text-sm text-slate-500">
+        <a href="{{ route('admin.index') }}" class="hover:text-blue-600">
+            Administration
+        </a>
+        <span>/</span>
+        <span class="font-semibold text-[#0F2347]">
+            Commerciaux
+        </span>
+    </nav>
+
+    <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-4">
+            <span class="grid size-14 place-items-center rounded-2xl bg-blue-100 text-blue-600">
+                <x-admin.icon name="users" class="size-7"/>
+            </span>
+
+            <div>
+                <h1 class="text-3xl font-bold text-[#0F2347]">
+                    Gestion des commerciaux
+                </h1>
+                <p class="mt-1 text-sm text-slate-500">
+                    Gérez les comptes commerciaux et leurs exposants.
+                </p>
+            </div>
         </div>
-        <a href="{{ route('admin.commerciaux.create') }}" class="inline-flex items-center justify-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">Ajouter un commercial</a>
-    </div>
+
+        <a href="{{ route('admin.commerciaux.create') }}"
+           class="rounded-xl bg-[#2563EB] px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700">
+            + Ajouter un commercial
+        </a>
+    </header>
 
     @if (session('status'))
-        <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            {{ session('status') }}
+        </div>
     @endif
 
-    <section class="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
-        <form method="GET" action="{{ route('admin.commerciaux.index') }}" class="grid gap-3 md:grid-cols-[1fr_220px_auto]">
-            <label class="sr-only" for="search">Rechercher par nom ou email</label>
-            <input id="search" name="search" value="{{ request('search') }}" placeholder="Rechercher nom ou email..." class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-            <label class="sr-only" for="status">Filtrer par statut</label>
-            <select id="status" name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="">Tous les statuts</option>
-                <option value="active" @selected(request('status') === 'active')>Actif</option>
-                <option value="inactive" @selected(request('status') === 'inactive')>Inactif</option>
-            </select>
-            <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Filtrer</button>
-        </form>
+    <!-- STATISTICS -->
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        <div class="mt-5 overflow-x-auto">
-            <table class="min-w-[850px] w-full text-left text-sm">
-                <thead class="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
+        @foreach ([
+            ['Total commerciaux', $totalCommercials, 'bg-blue-100 text-blue-700'],
+            ['Actifs', $activeCommercials, 'bg-emerald-100 text-emerald-700'],
+            ['Inactifs', $inactiveCommercials, 'bg-red-100 text-red-700'],
+            ['Exposants gérés', $totalExhibitors, 'bg-violet-100 text-violet-700'],
+        ] as $stat)
+            <article class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <span class="grid size-12 place-items-center rounded-xl {{ $stat[2] }}">
+                    <x-admin.icon name="users" class="size-6"/>
+                </span>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500">
+                        {{ $stat[0] }}
+                    </p>
+                    <p class="mt-1 text-3xl font-extrabold text-[#0F2347]">
+                        {{ $stat[1] }}
+                    </p>
+                </div>
+            </article>
+        @endforeach
+
+    </section>
+
+    <!-- TABLE CARD -->
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="border-b border-slate-100 p-5 sm:p-6">
+            <h2 class="text-lg font-bold text-[#0F2347]">
+                Liste des commerciaux
+            </h2>
+
+            <form method="GET"
+                  action="{{ route('admin.commerciaux.index') }}"
+                  class="mt-5 flex flex-col gap-3 sm:flex-row">
+
+                <input type="search"
+                       name="search"
+                       value="{{ request('search') }}"
+                       maxlength="255"
+                       placeholder="Rechercher nom, email, téléphone..."
+                       aria-label="Rechercher un commercial"
+                       class="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-blue-500 focus:ring-blue-500">
+
+                <select name="status"
+                        aria-label="Statut"
+                        class="rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                    <option value="">Tous les statuts</option>
+                    <option value="active" @selected(request('status') === 'active')>
+                        Actif
+                    </option>
+                    <option value="inactive" @selected(request('status') === 'inactive')>
+                        Inactif
+                    </option>
+                </select>
+
+                <button type="submit"
+                        class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                    Filtrer
+                </button>
+
+                <a href="{{ route('admin.commerciaux.index') }}"
+                   class="rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    Réinitialiser
+                </a>
+            </form>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[900px] text-left text-sm">
+
+                <thead class="bg-[#F5F7FB] text-xs uppercase text-slate-500">
                     <tr>
-                        <th class="px-3 py-3 font-semibold">Nom complet</th><th class="px-3 py-3 font-semibold">Email</th><th class="px-3 py-3 font-semibold">Téléphone</th><th class="px-3 py-3 font-semibold">Statut</th><th class="px-3 py-3 font-semibold">Date de création</th><th class="px-3 py-3 text-right font-semibold">Actions</th>
+                        <th class="px-5 py-4">Commercial</th>
+                        <th class="px-5 py-4">Email</th>
+                        <th class="px-5 py-4">Téléphone</th>
+                        <th class="px-5 py-4">Exposants</th>
+                        <th class="px-5 py-4">Statut</th>
+                        <th class="px-5 py-4 text-right">Actions</th>
                     </tr>
                 </thead>
+
                 <tbody class="divide-y divide-slate-100">
+
                     @forelse ($commercials as $commercial)
-                        <tr class="hover:bg-slate-50/70">
-                            <td class="px-3 py-4 font-semibold text-slate-800">{{ $commercial->name }}</td>
-                            <td class="px-3 py-4 text-slate-600">{{ $commercial->email }}</td>
-                            <td class="px-3 py-4 text-slate-600">{{ $commercial->phone ?: '—' }}</td>
-                            <td class="px-3 py-4"><span @class(['rounded-full px-2.5 py-1 text-xs font-semibold', 'bg-emerald-50 text-emerald-700' => $commercial->is_active, 'bg-slate-100 text-slate-600' => ! $commercial->is_active])>{{ $commercial->is_active ? 'Actif' : 'Inactif' }}</span></td>
-                            <td class="px-3 py-4 text-slate-600">{{ $commercial->created_at?->format('d/m/Y') }}</td>
-                            <td class="px-3 py-4 text-right"><a href="{{ route('admin.commerciaux.show', $commercial) }}" class="font-semibold text-[#2563EB] hover:underline">Voir la fiche</a></td>
+                        <tr class="hover:bg-blue-50/30">
+
+                            <!-- PHOTO + NAME -->
+                            <td class="px-5 py-4">
+                                <div class="flex items-center gap-3">
+
+                                    @if ($commercial->profile_photo_url)
+                                        <img src="{{ $commercial->profile_photo_url }}"
+                                             alt="Photo de {{ $commercial->name }}"
+                                             class="size-12 shrink-0 rounded-full border border-slate-200 object-cover">
+                                    @else
+                                        <span class="grid size-12 shrink-0 place-items-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                                            {{ $commercial->initials }}
+                                        </span>
+                                    @endif
+
+                                    <div>
+                                        <a href="{{ route('admin.commerciaux.show', $commercial) }}"
+                                           class="font-bold text-[#0F2347] hover:text-blue-600">
+                                            {{ $commercial->name }}
+                                        </a>
+                                        <p class="mt-1 text-xs text-slate-400">
+                                            Commercial #{{ $commercial->id }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="px-5 py-4 text-slate-600">
+                                {{ $commercial->email }}
+                            </td>
+
+                            <td class="px-5 py-4 text-slate-600">
+                                {{ $commercial->phone ?: '—' }}
+                            </td>
+
+                            <td class="px-5 py-4">
+                                <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+                                    {{ $commercial->exhibitors_count }}
+                                    exposant(s)
+                                </span>
+                            </td>
+
+                            <td class="px-5 py-4">
+                                <span @class([
+                                    'inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold',
+                                    'bg-emerald-50 text-emerald-700' => $commercial->is_active,
+                                    'bg-red-50 text-red-700' => !$commercial->is_active,
+                                ])>
+                                    {{ $commercial->is_active ? 'Actif' : 'Inactif' }}
+                                </span>
+                            </td>
+
+                            <td class="px-5 py-4">
+                                <div class="flex justify-end gap-2">
+
+                                    <a href="{{ route('admin.commerciaux.show', $commercial) }}"
+                                       title="Voir la fiche"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50">
+                                        Voir
+                                    </a>
+
+                                    <a href="{{ route('admin.commerciaux.edit', $commercial) }}"
+                                       title="Modifier"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                        Modifier
+                                    </a>
+
+                                </div>
+                            </td>
+
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-3 py-8"><x-admin.empty-state title="Aucun commercial trouvé" description="Ajoutez un commercial ou ajustez la recherche et les filtres." icon="users" /></td></tr>
+                        <tr>
+                            <td colspan="6" class="px-6 py-16 text-center">
+                                <p class="font-bold text-slate-700">
+                                    Aucun commercial trouvé
+                                </p>
+                                <p class="mt-2 text-sm text-slate-500">
+                                    Ajoutez un commercial ou modifiez vos filtres.
+                                </p>
+                            </td>
+                        </tr>
                     @endforelse
+
                 </tbody>
             </table>
         </div>
-        <div class="mt-5">{{ $commercials->links() }}</div>
+
+        <div class="border-t border-slate-100 p-5">
+            {{ $commercials->links() }}
+        </div>
+
     </section>
+</div>
+
 </x-admin.layout>
