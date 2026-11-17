@@ -1,41 +1,78 @@
 @props(['name'])
 
-<svg {{ $attributes->merge(['class' => 'size-5']) }} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+<svg {{ $attributes->merge(['class' => 'size-5']) }} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     @switch($name)
         @case('overview')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h6.5v6.5h-6.5zm10 0h6.5v6.5h-6.5zm-10 10h6.5v6.5h-6.5zm10 0h6.5v6.5h-6.5z" />
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
             @break
         @case('calendar')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75v3m10.5-3v3M4.5 9.25h15M5.75 5.25h12.5a1.25 1.25 0 0 1 1.25 1.25v11.75a1.25 1.25 0 0 1-1.25 1.25H5.75A1.25 1.25 0 0 1 4.5 18.25V6.5a1.25 1.25 0 0 1 1.25-1.25Z" />
+            <rect x="3" y="5" width="18" height="16" rx="2"/>
+            <path d="M7 3v4M17 3v4M3 10h18"/>
             @break
         @case('users')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.25v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5a3.5 3.5 0 0 0-3.5 3.5v1.5m6-9.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm8.75 9.5v-1.5a3.5 3.5 0 0 0-2.625-3.39m-1.625-10.8a3.25 3.25 0 0 1 0 6.29" />
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            @break
+        @case('storefront')
+            <path d="M3 10h18l-2-6H5l-2 6Z"/>
+            <path d="M4 10v10h16V10M9 20v-7h6v7M3 10c0 1.7 3 2.5 4.5 0 1.5 2.5 3 2.5 4.5 0 1.5 2.5 3 2.5 4.5 0 1.5 2.5 4.5 1.7 4.5 0"/>
             @break
         @case('badge')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0 1 18.75 6v12A2.25 2.25 0 0 1 16.5 20.25h-9A2.25 2.25 0 0 1 5.25 18V6A2.25 2.25 0 0 1 7.5 3.75Zm1.25 5.5h6.5m-6.5 3h6.5m-6.5 3h3" />
+            <rect x="5" y="4" width="14" height="17" rx="2"/>
+            <path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h3"/>
+            @break
+        @case('badge-users')
+            <circle cx="9" cy="8" r="2.5"/>
+            <circle cx="16" cy="9" r="2"/>
+            <path d="M3 19v-2a6 6 0 0 1 12 0v2H3ZM16 15a4.5 4.5 0 0 1 5 4h-4"/>
+            @break
+        @case('layers')
+            <path d="m12 2 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 17l9 5 9-5"/>
             @break
         @case('box')
-            <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 7.5 8.25-3.75 8.25 3.75M3.75 7.5 12 11.25m-8.25-3.75v9L12 20.25m0-9v9m0-9 8.25-3.75v9L12 20.25" />
+            <path d="m12 2 9 5-9 5-9-5 9-5ZM3 7v10l9 5 9-5V7M12 12v10"/>
             @break
         @case('inbox')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 4.5h15v12.75a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V4.5Zm0 9.75h4.2l1.2 1.5h4.2l1.2-1.5h4.2" />
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 14h5l2 3h4l2-3h5"/>
             @break
         @case('chart')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5V4.5m0 15h15M8 16v-4m4 4V7.5m4 8.5v-6" />
+            <path d="M3 3v18h18"/>
+            <rect x="6" y="12" width="3" height="6" rx=".5"/>
+            <rect x="11" y="8" width="3" height="10" rx=".5"/>
+            <rect x="16" y="5" width="3" height="13" rx=".5"/>
             @break
         @case('bell')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 18.75a2.5 2.5 0 0 1-4.5 0m8.25-2.25H6l1.25-1.75v-4.5a4.75 4.75 0 0 1 9.5 0v4.5L18 16.5Z" />
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/>
             @break
         @case('settings')
-            <path stroke-linecap="round" stroke-linejoin="round" d="m9.6 3.7.45 1.35a7.2 7.2 0 0 1 1.95 0l.45-1.35 1.94.8-.3 1.38c.55.37 1.04.86 1.42 1.42l1.38-.3.8 1.94-1.35.45a7.2 7.2 0 0 1 0 1.95l1.35.45-.8 1.94-1.38-.3a7.03 7.03 0 0 1-1.42 1.42l.3 1.38-1.94.8-.45-1.35a7.2 7.2 0 0 1-1.95 0l-.45 1.35-1.94-.8.3-1.38a7.03 7.03 0 0 1-1.42-1.42l-1.38.3-.8-1.94 1.35-.45a7.2 7.2 0 0 1 0-1.95L4.1 8.94l.8-1.94 1.38.3c.38-.56.87-1.05 1.42-1.42l-.3-1.38 1.94-.8ZM12 13.75a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
+            <path d="m19.4 15 .1.1 1.4 1.1-1.5 2.6-1.7-.7a8 8 0 0 1-2.1 1.2l-.3 1.8h-3l-.3-1.8a8 8 0 0 1-2.1-1.2l-1.7.7-1.5-2.6 1.4-1.1a8 8 0 0 1 0-2.4l-1.4-1.1L8.2 9l1.7.7A8 8 0 0 1 12 8.5l.3-1.8h3l.3 1.8a8 8 0 0 1 2.1 1.2l1.7-.7 1.5 2.6-1.4 1.1a8 8 0 0 1 0 2.3Z" transform="translate(-1.7 -2)"/>
             @break
         @case('logout')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 8.25 18 12m0 0-3.75 3.75M18 12H7.5m5.25-7.5h-6A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25h6" />
+            <path d="M10 17l5-5-5-5M15 12H3M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/>
             @break
         @case('menu')
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 7.5h15m-15 4.5h15m-15 4.5h15" />
+            <path d="M4 6h16M4 12h16M4 18h16"/>
+            @break
+        @case('user-plus')
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M19 8v6M16 11h6"/>
+            @break
+        @case('clipboard-check')
+            <rect x="5" y="4" width="14" height="18" rx="2"/>
+            <path d="M9 4V2h6v2m-7 11 2.5 2.5L16 12"/>
+            @break
+        @case('zap')
+            <path d="m13 2-9 12h7l-1 8 10-12h-7l0-8Z"/>
             @break
         @default
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 8v4l3 2"/>
     @endswitch
 </svg>

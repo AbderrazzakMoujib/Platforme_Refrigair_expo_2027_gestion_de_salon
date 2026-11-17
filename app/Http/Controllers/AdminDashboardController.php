@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EquipmentRequest;
 use App\Models\Exhibitor;
+use App\Models\Salon;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,7 +15,16 @@ class AdminDashboardController extends Controller
     {
         $admin = $request->user();
 
-        // Commerciaux
+        /*
+        |--------------------------------------------------------------------------
+        | STATISTIQUES GENERALES
+        |--------------------------------------------------------------------------
+        */
+
+        $exhibitors = Exhibitor::query()
+            ->withCount('badges')
+            ->get();
+
         $commercials = User::query()
             ->where('role', 'commercial')
             ->orderBy('name')
@@ -21,16 +32,15 @@ class AdminDashboardController extends Controller
 
         $commercialsCount = $commercials->count();
 
-        $activeCommercials = $commercials
-            ->where('is_active', true)
-            ->count();
-
-        // Exposants avec le nombre réel de badges
-        $exhibitors = Exhibitor::query()
-            ->withCount('badges')
-            ->get();
-
         $exposantsCount = $exhibitors->count();
+
+        $salonsCount = Salon::query()->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATISTIQUES DES BADGES
+        |--------------------------------------------------------------------------
+        */
 
         $totalAuthorizedBadges = (int) $exhibitors
             ->sum('authorized_badges');
@@ -43,102 +53,208 @@ class AdminDashboardController extends Controller
             $totalAuthorizedBadges - $totalRegisteredBadges
         );
 
-        // Exposants avec quota complet
         $completedExhibitors = $exhibitors
             ->filter(fn ($exhibitor) =>
-                $exhibitor->authorized_badges > 0
-                && $exhibitor->badges_count >= $exhibitor->authorized_badges
-            )->count();
+                (int) $exhibitor->authorized_badges > 0
+                && (int) $exhibitor->badges_count
+                    >= (int) $exhibitor->authorized_badges
+            )
+            ->count();
 
-        // Exposants avec quelques badges
         $partialExhibitors = $exhibitors
             ->filter(fn ($exhibitor) =>
-                $exhibitor->badges_count > 0
-                && $exhibitor->badges_count < $exhibitor->authorized_badges
-            )->count();
+                (int) $exhibitor->badges_count > 0
+                && (int) $exhibitor->badges_count
+                    < (int) $exhibitor->authorized_badges
+            )
+            ->count();
 
-        // Exposants sans badges (quota > 0)
         $pendingExhibitors = $exhibitors
             ->filter(fn ($exhibitor) =>
-                $exhibitor->authorized_badges > 0
-                && $exhibitor->badges_count === 0
-            )->count();
+                (int) $exhibitor->authorized_badges > 0
+                && (int) $exhibitor->badges_count === 0
+            )
+            ->count();
 
         $badgeProgress = $totalAuthorizedBadges > 0
-            ? round(
-                $totalRegisteredBadges / $totalAuthorizedBadges * 100,
-                1
+            ? min(
+                100,
+                round(
+                    $totalRegisteredBadges * 100
+                    / $totalAuthorizedBadges
+                )
             )
             : 0;
 
-        $badgeProgress = min(100, $badgeProgress);
+        /*
+        |--------------------------------------------------------------------------
+        | STATISTIQUES DES DEMANDES D'EQUIPEMENTS
+        |--------------------------------------------------------------------------
+        */
 
-        // Suivi par commercial
-        $commercialStats = $commercials->map(function ($commercial) use ($exhibitors) {
+        $requestsByStatus = EquipmentRequest::query()
+            ->selectRaw('status, COUNT(*) AS total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
-            $clients = $exhibitors->where(
-                'commercial_id',
-                $commercial->id
-            );
+        $pendingRequests = (int) (
+            $requestsByStatus['pending'] ?? 0
+        );
 
-            $authorized = (int) $clients->sum('authorized_badges');
-            $registered = (int) $clients->sum('badges_count');
+        $approvedRequests = (int) (
+            $requestsByStatus['approved'] ?? 0
+        );
 
-            $complete = $clients->filter(fn ($client) =>
-                $client->authorized_badges > 0
-                && $client->badges_count >= $client->authorized_badges
-            )->count();
+        $rejectedRequests = (int) (
+            $requestsByStatus['rejected'] ?? 0
+        );
 
-            $pending = $clients->filter(fn ($client) =>
-                $client->authorized_badges > 0
-                && $client->badges_count === 0
-            )->count();
+        $totalRequests = $pendingRequests
+            + $approvedRequests
+            + $rejectedRequests;
 
-            $progress = $authorized > 0
-                ? min(100, round($registered / $authorized * 100, 1))
-                : 0;
+        $requestPercentages = [
+            'pending' => $totalRequests > 0
+                ? round(
+                    $pendingRequests * 100 / $totalRequests
+                )
+                : 0,
 
-            return [
-                'commercial' => $commercial,
-                'exhibitors' => $clients->count(),
-                'authorized' => $authorized,
-                'registered' => $registered,
-                'complete' => $complete,
-                'pending' => $pending,
-                'progress' => $progress,
-            ];
-        });
+            'approved' => $totalRequests > 0
+                ? round(
+                    $approvedRequests * 100 / $totalRequests
+                )
+                : 0,
 
-        // Derniers exposants créés
+            'rejected' => $totalRequests > 0
+                ? round(
+                    $rejectedRequests * 100 / $totalRequests
+                )
+                : 0,
+        ];
+
+        /*
+        |--------------------------------------------------------------------------
+        | SALONS EN COURS ET A VENIR
+        |--------------------------------------------------------------------------
+        */
+
+        $upcomingSalons = Salon::query()
+            ->whereIn('status', ['active', 'planned'])
+            ->orderBy('start_date')
+            ->limit(4)
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATISTIQUES PAR COMMERCIAL
+        |--------------------------------------------------------------------------
+        */
+
+        $commercialStats = $commercials->map(
+            function ($commercial) use ($exhibitors) {
+
+                $clients = $exhibitors->where(
+                    'commercial_id',
+                    $commercial->id
+                );
+
+                $authorized = (int) $clients
+                    ->sum('authorized_badges');
+
+                $registered = (int) $clients
+                    ->sum('badges_count');
+
+                $complete = $clients
+                    ->filter(fn ($client) =>
+                        (int) $client->authorized_badges > 0
+                        && (int) $client->badges_count
+                            >= (int) $client->authorized_badges
+                    )
+                    ->count();
+
+                $pending = $clients
+                    ->filter(fn ($client) =>
+                        (int) $client->authorized_badges > 0
+                        && (int) $client->badges_count === 0
+                    )
+                    ->count();
+
+                $progress = $authorized > 0
+                    ? min(
+                        100,
+                        round(
+                            $registered * 100 / $authorized,
+                            1
+                        )
+                    )
+                    : 0;
+
+                return [
+                    'commercial' => $commercial,
+                    'exhibitors' => $clients->count(),
+                    'authorized' => $authorized,
+                    'registered' => $registered,
+                    'complete' => $complete,
+                    'pending' => $pending,
+                    'progress' => $progress,
+                ];
+            }
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | DERNIERS EXPOSANTS
+        |--------------------------------------------------------------------------
+        */
+
         $recentExhibitors = Exhibitor::query()
             ->with('commercial:id,name')
             ->withCount('badges')
             ->latest()
-            ->limit(6)
+            ->limit(5)
             ->get();
 
-        // Derniers comptes créés
-        $recentAccounts = User::query()
-            ->select(['id', 'name', 'role', 'created_at'])
+        /*
+        |--------------------------------------------------------------------------
+        | DERNIERES DEMANDES D'EQUIPEMENTS
+        |--------------------------------------------------------------------------
+        */
+
+        $recentRequests = EquipmentRequest::query()
+            ->with('exhibitor:id,company_name')
             ->latest()
             ->limit(5)
             ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN CONNECTE
+        |--------------------------------------------------------------------------
+        */
 
         $adminInitials = collect(
             preg_split('/\s+/', trim($admin->name))
         )
             ->filter()
             ->take(2)
-            ->map(fn (string $part) =>
-                mb_strtoupper(mb_substr($part, 0, 1))
+            ->map(
+                fn (string $part) =>
+                    mb_strtoupper(mb_substr($part, 0, 1))
             )
             ->implode('') ?: 'A';
+
+        /*
+        |--------------------------------------------------------------------------
+        | ENVOI DES DONNEES A LA VUE
+        |--------------------------------------------------------------------------
+        */
 
         return view('admin.dashboard', compact(
             'admin',
             'adminInitials',
+            'salonsCount',
             'commercialsCount',
-            'activeCommercials',
             'exposantsCount',
             'totalAuthorizedBadges',
             'totalRegisteredBadges',
@@ -147,9 +263,15 @@ class AdminDashboardController extends Controller
             'partialExhibitors',
             'pendingExhibitors',
             'badgeProgress',
+            'pendingRequests',
+            'approvedRequests',
+            'rejectedRequests',
+            'totalRequests',
+            'requestPercentages',
+            'upcomingSalons',
             'commercialStats',
             'recentExhibitors',
-            'recentAccounts'
+            'recentRequests'
         ));
     }
 }
