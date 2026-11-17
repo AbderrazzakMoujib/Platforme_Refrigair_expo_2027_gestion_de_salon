@@ -29,8 +29,9 @@ class SalonController extends Controller
             )
                 ->filter()
                 ->take(2)
-                ->map(fn (string $part) =>
-                    mb_strtoupper(mb_substr($part, 0, 1))
+                ->map(
+                    fn (string $part) =>
+                        mb_strtoupper(mb_substr($part, 0, 1))
                 )
                 ->implode('') ?: 'A',
         ];
@@ -44,36 +45,73 @@ class SalonController extends Controller
                 'nullable',
                 Rule::in(self::STATUSES),
             ],
+            'year' => [
+                'nullable',
+                'integer',
+                'between:2000,2100',
+            ],
         ]);
 
-        $salons = Salon::query()
-            ->when(
-                !empty($filters['search']),
-                function ($query) use ($filters) {
-                    $term = trim($filters['search']);
+        $query = Salon::query();
 
-                    $query->where(function ($q) use ($term) {
-                        $q->where('name', 'like', "%{$term}%")
-                            ->orWhere('edition', 'like', "%{$term}%")
-                            ->orWhere('city', 'like', "%{$term}%");
-                    });
-                }
-            )
-            ->when(
-                !empty($filters['status']),
-                fn ($query) =>
-                    $query->where('status', $filters['status'])
-            )
-            ->orderByDesc('start_date')
-            ->paginate(10)
-            ->withQueryString();
+        if (!empty($filters['search'])) {
+            $term = trim($filters['search']);
+
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('edition', 'like', "%{$term}%")
+                    ->orWhere('city', 'like', "%{$term}%")
+                    ->orWhere('venue', 'like', "%{$term}%");
+            });
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['year'])) {
+            $query->whereYear(
+                'start_date',
+                (int) $filters['year']
+            );
+        }
+
+        
+$years = Salon::query()
+    ->orderByDesc('start_date')
+    ->get(['start_date'])
+    ->map(fn (Salon $salon) => $salon->start_date->year)
+    ->unique()
+    ->values();
+;
 
         return view('admin.salons.index', [
             ...$this->layoutData($request),
-            'salons' => $salons,
+
+            'salons' => $query
+                ->orderByDesc('start_date')
+                ->paginate(10)
+                ->withQueryString(),
+
+            'years' => $years,
+
             'totalSalons' => Salon::count(),
-            'activeSalons' => Salon::where('status', 'active')->count(),
-            'plannedSalons' => Salon::where('status', 'planned')->count(),
+
+            'activeSalons' => Salon::where(
+                'status',
+                'active'
+            )->count(),
+
+            'plannedSalons' => Salon::where(
+                'status',
+                'planned'
+            )->count(),
+
+            'completedSalons' => Salon::where(
+                'status',
+                'completed'
+            )->count(),
+
             'registrationOpenCount' => Salon::where(
                 'registration_open',
                 true
@@ -85,10 +123,12 @@ class SalonController extends Controller
     {
         return view('admin.salons.form', [
             ...$this->layoutData($request),
+
             'salon' => new Salon([
                 'status' => 'planned',
                 'registration_open' => false,
             ]),
+
             'pageTitle' => 'Créer un salon',
             'formAction' => route('admin.salons.store'),
             'formMethod' => null,
@@ -106,21 +146,31 @@ class SalonController extends Controller
             ->with('status', 'Salon créé avec succès.');
     }
 
-    public function show(Request $request, Salon $salon): View
-    {
+    public function show(
+        Request $request,
+        Salon $salon
+    ): View {
         return view('admin.salons.show', [
             ...$this->layoutData($request),
             'salon' => $salon,
         ]);
     }
 
-    public function edit(Request $request, Salon $salon): View
-    {
+    public function edit(
+        Request $request,
+        Salon $salon
+    ): View {
         return view('admin.salons.form', [
             ...$this->layoutData($request),
             'salon' => $salon,
+
             'pageTitle' => 'Modifier le salon',
-            'formAction' => route('admin.salons.update', $salon),
+
+            'formAction' => route(
+                'admin.salons.update',
+                $salon
+            ),
+
             'formMethod' => 'PUT',
         ]);
     }
@@ -139,7 +189,11 @@ class SalonController extends Controller
     public function toggleRegistration(
         Salon $salon
     ): RedirectResponse {
-        if (! in_array($salon->status, ['planned', 'active'], true)) {
+        if (!in_array(
+            $salon->status,
+            ['planned', 'active'],
+            true
+        )) {
             return back()->withErrors([
                 'registration' =>
                     'Les inscriptions ne peuvent pas être ouvertes pour un salon terminé ou annulé.',
@@ -147,7 +201,8 @@ class SalonController extends Controller
         }
 
         $salon->update([
-            'registration_open' => ! $salon->registration_open,
+            'registration_open' =>
+                !$salon->registration_open,
         ]);
 
         return back()->with(
@@ -161,19 +216,56 @@ class SalonController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'edition' => ['required', 'string', 'max:100'],
-            'city' => ['required', 'string', 'max:150'],
-            'venue' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date_format:Y-m-d'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'edition' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'city' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+
+            'venue' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'start_date' => [
+                'required',
+                'date_format:Y-m-d',
+            ],
+
             'end_date' => [
                 'required',
                 'date_format:Y-m-d',
                 'after_or_equal:start_date',
             ],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'status' => ['required', Rule::in(self::STATUSES)],
-            'registration_open' => ['required', 'boolean'],
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:5000',
+            ],
+
+            'status' => [
+                'required',
+                Rule::in(self::STATUSES),
+            ],
+
+            'registration_open' => [
+                'required',
+                'boolean',
+            ],
         ]);
 
         if (
