@@ -181,7 +181,26 @@
                             <p class="text-sm font-semibold text-slate-800">{{ $admin->name }}</p>
                             <p class="text-xs text-slate-500">Administrateur</p>
                         </div>
-                        <span class="grid size-10 place-items-center rounded-full bg-[#0F2347] text-sm font-bold text-white">{{ $adminInitials }}</span>
+                        
+<a href="{{ route('admin.parametres.index') }}"
+   class="block size-11 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200 transition hover:ring-blue-400"
+   title="Mon profil"
+   aria-label="Accéder à mon profil">
+
+    @if ($admin->profile_photo_url)
+        <img
+            src="{{ $admin->profile_photo_url }}"
+            alt="Photo de {{ $admin->name }}"
+            class="h-full w-full object-cover"
+        >
+    @else
+        <span class="grid h-full w-full place-items-center bg-[#0F2347] text-sm font-bold text-white">
+            {{ $adminInitials }}
+        </span>
+    @endif
+
+</a>
+
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">

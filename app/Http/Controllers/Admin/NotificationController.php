@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -12,14 +13,40 @@ class NotificationController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate([
-            'filter' => ['nullable', 'in:all,unread,read'],
+            'filter' => [
+                'nullable',
+                Rule::in(['all', 'unread', 'read']),
+            ],
+            'search' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'type' => [
+                'nullable',
+                Rule::in([
+                    'equipment_request',
+                    'exhibitor',
+                ]),
+            ],
+            'period' => [
+                'nullable',
+                Rule::in(['all', 'today', '7d', '30d']),
+            ],
+            'selected' => [
+                'nullable',
+                'uuid',
+            ],
         ]);
 
         $admin = $request->user();
+
         $filter = $filters['filter'] ?? 'all';
+        $period = $filters['period'] ?? 'all';
 
         $query = $admin->notifications();
 
+        // Statut lu / non lu.
         if ($filter === 'unread') {
             $query->whereNull('read_at');
         }
@@ -28,27 +55,100 @@ class NotificationController extends Controller
             $query->whereNotNull('read_at');
         }
 
+        // Recherche sur titre, message ou données.
+        if (!empty($filters['search'])) {
+            $search = trim($filters['search']);
+
+            $query->where(
+                'data',
+                'like',
+                "%{$search}%"
+            );
+        }
+
+        // Type de notification.
+        if (!empty($filters['type'])) {
+            $query->where(
+                'data->type',
+                $filters['type']
+            );
+        }
+
+        // Période.
+        switch ($period) {
+            case 'today':
+                $query->whereDate(
+                    'created_at',
+                    today()
+                );
+                break;
+
+            case '7d':
+                $query->where(
+                    'created_at',
+                    '>=',
+                    now()->subDays(7)
+                );
+                break;
+
+            case '30d':
+                $query->where(
+                    'created_at',
+                    '>=',
+                    now()->subDays(30)
+                );
+                break;
+        }
+
+        $notifications = $query
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        // Une notification ne peut être consultée
+        // que si elle appartient à l'admin connecté.
+        $selectedNotification = null;
+
+        if (!empty($filters['selected'])) {
+            $selectedNotification = $admin
+                ->notifications()
+                ->find($filters['selected']);
+        }
+
+        // Afficher la première notification par défaut.
+        if (!$selectedNotification) {
+            $selectedNotification = $notifications
+                ->items()[0] ?? null;
+        }
+
         return view('admin.notifications.index', [
             'admin' => $admin,
-            'adminInitials' => collect(
-                preg_split('/\s+/', trim($admin->name))
-            )
-                ->filter()
-                ->take(2)
-                ->map(fn (string $part) =>
-                    mb_strtoupper(mb_substr($part, 0, 1))
-                )
-                ->implode('') ?: 'A',
+            'adminInitials' => $this->initials(
+                $admin->name
+            ),
 
-            'notifications' => $query
-                ->latest()
-                ->paginate(12)
-                ->withQueryString(),
+            'notifications' => $notifications,
+            'selectedNotification' => $selectedNotification,
 
             'filter' => $filter,
-            'totalCount' => $admin->notifications()->count(),
-            'unreadCount' => $admin->unreadNotifications()->count(),
-            'readCount' => $admin->readNotifications()->count(),
+            'period' => $period,
+
+            'totalCount' => $admin
+                ->notifications()
+                ->count(),
+
+            'unreadCount' => $admin
+                ->unreadNotifications()
+                ->count(),
+
+            'readCount' => $admin
+                ->readNotifications()
+                ->count(),
+
+            'todayCount' => $admin
+                ->notifications()
+                ->whereDate('created_at', today())
+                ->count(),
         ]);
     }
 
@@ -64,20 +164,31 @@ class NotificationController extends Controller
 
         $data = $item->data;
 
-        // URLs générées côté serveur, jamais confiance
-        // à une URL arbitraire stockée en base.
+        // Destination générée par les routes Laravel.
+        // On n'utilise jamais une URL arbitraire
+        // enregistrée dans les données.
         $destination = match ($data['type'] ?? null) {
             'equipment_request' => (
                 isset($data['equipment_request_id'])
-                ? route('admin.demandes.show', $data['equipment_request_id'])
-                : route('admin.demandes.index')
+                    ? route(
+                        'admin.demandes.show',
+                        $data['equipment_request_id']
+                    )
+                    : route('admin.demandes.index')
             ),
+
             'exhibitor' => (
                 isset($data['exhibitor_id'])
-                ? route('admin.exposants.show', $data['exhibitor_id'])
-                : route('admin.exposants.index')
+                    ? route(
+                        'admin.exposants.show',
+                        $data['exhibitor_id']
+                    )
+                    : route('admin.exposants.index')
             ),
-            default => route('admin.notifications.index'),
+
+            default => route(
+                'admin.notifications.index'
+            ),
         };
 
         return redirect()->to($destination);
@@ -99,15 +210,34 @@ class NotificationController extends Controller
         );
     }
 
-    public function markAllRead(Request $request): RedirectResponse
-    {
+    public function markAllRead(
+        Request $request
+    ): RedirectResponse {
         $request->user()
             ->unreadNotifications()
-            ->update(['read_at' => now()]);
+            ->update([
+                'read_at' => now(),
+            ]);
 
         return back()->with(
             'status',
             'Toutes les notifications ont été marquées comme lues.'
         );
+    }
+
+    private function initials(string $name): string
+    {
+        return collect(
+            preg_split('/\s+/', trim($name))
+        )
+            ->filter()
+            ->take(2)
+            ->map(
+                fn (string $part) =>
+                    mb_strtoupper(
+                        mb_substr($part, 0, 1)
+                    )
+            )
+            ->implode('') ?: 'A';
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Equipment;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -24,19 +25,9 @@ class EquipmentController extends Controller
 
     private function layoutData(Request $request): array
     {
-        $admin = $request->user();
-
         return [
-            'admin' => $admin,
-            'adminInitials' => collect(
-                preg_split('/\s+/', trim($admin->name))
-            )
-                ->filter()
-                ->take(2)
-                ->map(fn ($part) =>
-                    mb_strtoupper(mb_substr($part, 0, 1))
-                )
-                ->implode('') ?: 'A',
+            'admin' => $request->user(),
+            'adminInitials' => $request->user()->initials,
         ];
     }
 
@@ -52,47 +43,101 @@ class EquipmentController extends Controller
                 'nullable',
                 Rule::in(['active', 'inactive']),
             ],
+            'commercial_id' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+            ],
         ]);
 
         $equipment = Equipment::query()
+            ->with([
+                'commercial:id,name,email,profile_photo',
+            ])
             ->when(
                 !empty($filters['search']),
                 function ($query) use ($filters) {
                     $term = trim($filters['search']);
 
-                    $query->where(function ($query) use ($term) {
-                        $query->where('name', 'like', "%{$term}%")
-                            ->orWhere('description', 'like', "%{$term}%");
+                    $query->where(function ($q) use ($term) {
+                        $q->where(
+                            'name',
+                            'like',
+                            "%{$term}%"
+                        )
+                        ->orWhere(
+                            'description',
+                            'like',
+                            "%{$term}%"
+                        )
+                        ->orWhereHas(
+                            'commercial',
+                            fn ($c) => $c->where(
+                                'name',
+                                'like',
+                                "%{$term}%"
+                            )
+                        );
                     });
                 }
             )
             ->when(
                 !empty($filters['category']),
-                fn ($query) =>
-                    $query->where('category', $filters['category'])
+                fn ($q) => $q->where(
+                    'category',
+                    $filters['category']
+                )
             )
             ->when(
                 !empty($filters['status']),
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        $filters['status'] === 'active'
-                    )
+                fn ($q) => $q->where(
+                    'is_active',
+                    $filters['status'] === 'active'
+                )
+            )
+            ->when(
+                !empty($filters['commercial_id']),
+                fn ($q) => $q->where(
+                    'commercial_id',
+                    $filters['commercial_id']
+                )
             )
             ->latest()
             ->paginate(10)
             ->withQueryString();
 
+        $totalEquipment = Equipment::count();
+
+        $activeEquipment = Equipment::query()
+            ->where('is_active', true)
+            ->count();
+
+        $inactiveEquipment = Equipment::query()
+            ->where('is_active', false)
+            ->count();
+
+        $totalQuantity = (int) Equipment::query()
+            ->where('is_active', true)
+            ->sum('quantity_available');
+
+        $commercials = User::query()
+            ->where('role', 'commercial')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('admin.equipment.index', [
             ...$this->layoutData($request),
             'equipment' => $equipment,
+            'commercials' => $commercials,
             'categories' => self::CATEGORIES,
-            'totalEquipment' => Equipment::count(),
-            'activeEquipment' => Equipment::where('is_active', true)->count(),
-            'inactiveEquipment' => Equipment::where('is_active', false)->count(),
+            'totalEquipment' => $totalEquipment,
+            'activeEquipment' => $activeEquipment,
+            'inactiveEquipment' => $inactiveEquipment,
+            'totalQuantity' => $totalQuantity,
         ]);
     }
 
+    // Conservé pour compatibilité des anciennes routes.
     public function create(Request $request): View
     {
         return view('admin.equipment.form', [
@@ -127,7 +172,8 @@ class EquipmentController extends Controller
             Equipment::create($data);
         } catch (\Throwable $exception) {
             if (!empty($data['image_path'])) {
-                Storage::disk('public')->delete($data['image_path']);
+                Storage::disk('public')
+                    ->delete($data['image_path']);
             }
 
             throw $exception;
@@ -147,7 +193,10 @@ class EquipmentController extends Controller
             'equipmentItem' => $equipment,
             'categories' => self::CATEGORIES,
             'pageTitle' => 'Modifier un équipement',
-            'formAction' => route('admin.equipements.update', $equipment),
+            'formAction' => route(
+                'admin.equipements.update',
+                $equipment
+            ),
             'formMethod' => 'PUT',
         ]);
     }
@@ -165,7 +214,11 @@ class EquipmentController extends Controller
         $newImage = null;
 
         if ($image) {
-            $newImage = $image->store('equipment', 'public');
+            $newImage = $image->store(
+                'equipment',
+                'public'
+            );
+
             $data['image_path'] = $newImage;
         }
 
@@ -206,7 +259,11 @@ class EquipmentController extends Controller
     private function validated(Request $request): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
             'category' => [
                 'required',
                 Rule::in(self::CATEGORIES),

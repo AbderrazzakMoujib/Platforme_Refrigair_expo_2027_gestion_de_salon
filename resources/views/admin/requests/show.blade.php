@@ -178,7 +178,8 @@
                 </form>
             </article>
 
-            <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-red-200">
+            <article id="refuser-demande"
+                 class="scroll-mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-red-200">
                 <h2 class="text-lg font-bold">
                     Refuser la demande
                 </h2>
