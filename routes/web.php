@@ -193,7 +193,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     BadgeController::class, 'print',
      ])->whereNumber('badge')->name('badges.print');
 
+    Route::get(
+    '/assistance',
+    [\App\Http\Controllers\Admin\SupportController::class, 'index']
+    )->name('support.index');
 
+    Route::get(
+    '/assistance/{ticket}',
+    [\App\Http\Controllers\Admin\SupportController::class, 'show']
+    )->whereNumber('ticket')->name('support.show');
 
 });
 
@@ -210,6 +218,42 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::put('/commercial/exposants/{exhibitor}', [CommercialExhibitorController::class, 'update'])->whereNumber('exhibitor')->name('commercial.exhibitors.update');
     Route::post('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'createAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access');
     Route::patch('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'toggleAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access.toggle');
+    
+    Route::get(
+    '/commercial/assistance',
+    [\App\Http\Controllers\CommercialSupportController::class, 'index']
+    )->name('commercial.support.index');
+
+    Route::get(
+    '/commercial/assistance/{ticket}',
+    [\App\Http\Controllers\CommercialSupportController::class, 'show']
+    )->whereNumber('ticket')->name('commercial.support.show');
+
+    Route::post(
+    '/commercial/assistance/{ticket}/reply',
+    [\App\Http\Controllers\CommercialSupportController::class, 'reply']
+    )->middleware('throttle:20,1')
+    ->whereNumber('ticket')->name('commercial.support.reply');
+
+    Route::patch(
+    '/commercial/assistance/{ticket}/status',
+    [\App\Http\Controllers\CommercialSupportController::class, 'updateStatus']
+    )->whereNumber('ticket')->name('commercial.support.status');
+
+
+    Route::get('/commercial/notifications',
+    [\App\Http\Controllers\AccountNotificationController::class, 'index']
+    )->name('commercial.notifications.index');
+
+    Route::post('/commercial/notifications/read-all',
+    [\App\Http\Controllers\AccountNotificationController::class, 'markAllRead']
+    )->name('commercial.notifications.read-all');
+
+    Route::post('/commercial/notifications/{notification}/open',
+    [\App\Http\Controllers\AccountNotificationController::class, 'open']
+   )->whereUuid('notification')
+  ->name('commercial.notifications.open');
+
 });
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');
@@ -223,5 +267,92 @@ Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     '/exposant/options-du-stand',
     [ExhibitorStandOptionsController::class, 'store']
     )->name('exhibitor.stand-options.store');
+
+
+    Route::get(
+    '/exposant/mon-entreprise',
+    [
+        \App\Http\Controllers\ExhibitorCompanyController::class,
+        'index'
+    ]
+    )->name('exhibitor.company.index');
+
+    Route::put(
+    '/exposant/mon-entreprise',
+    [
+        \App\Http\Controllers\ExhibitorCompanyController::class,
+        'update'
+    ]
+    )->name('exhibitor.company.update');
+
     
+    Route::get(
+    '/exposant/badges/{badge}/qr',
+    [ExhibitorBadgeController::class, 'qr']
+    )
+    ->whereNumber('badge')
+    ->name('exhibitor.badges.qr');
+
+
+    Route::get(
+    '/exposant/mes-demandes',
+    [
+        \App\Http\Controllers\ExhibitorRequestController::class,
+        'index',
+    ]
+    )->name('exhibitor.requests.index');
+
+    
+    Route::get(
+    '/exposant/assistance',
+    [\App\Http\Controllers\ExhibitorSupportController::class, 'index']
+     )->name('exhibitor.support.index');
+
+    Route::post(
+    '/exposant/assistance',
+    [\App\Http\Controllers\ExhibitorSupportController::class, 'store']
+     )->middleware('throttle:10,1')
+    ->name('exhibitor.support.store');
+
+    Route::get(
+    '/exposant/assistance/{ticket}',
+    [\App\Http\Controllers\ExhibitorSupportController::class, 'show']
+    )->whereNumber('ticket')->name('exhibitor.support.show');
+
+    Route::post(
+    '/exposant/assistance/{ticket}/reply',
+    [\App\Http\Controllers\ExhibitorSupportController::class, 'reply']
+    )->middleware('throttle:20,1')
+    ->whereNumber('ticket')->name('exhibitor.support.reply');
+
+    Route::get('/exposant/notifications',
+    [\App\Http\Controllers\AccountNotificationController::class, 'index']
+    )->name('exhibitor.notifications.index');
+
+    Route::post('/exposant/notifications/read-all',
+    [\App\Http\Controllers\AccountNotificationController::class, 'markAllRead']
+    )->name('exhibitor.notifications.read-all');
+
+    Route::post('/exposant/notifications/{notification}/open',
+    [\App\Http\Controllers\AccountNotificationController::class, 'open']
+    )->whereUuid('notification')
+    ->name('exhibitor.notifications.open');
+
+
 });
+
+
+Route::get(
+    '/notifications/live',
+    [
+        \App\Http\Controllers\LiveNotificationController::class,
+        'index',
+    ]
+)
+    ->middleware([
+        'auth',
+        'active.account',
+        'throttle:60,1',
+    ])
+    ->name('notifications.live');
+

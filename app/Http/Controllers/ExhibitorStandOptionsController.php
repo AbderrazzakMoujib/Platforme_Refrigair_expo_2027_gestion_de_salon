@@ -110,8 +110,13 @@ class ExhibitorStandOptionsController extends Controller
             $order->items()->createMany($items);
         });
 
+        
         return redirect()
-            ->route('exhibitor.stand-options.index')
-            ->with('status', 'Votre demande a été envoyée avec succès.');
+            ->route('exhibitor.requests.index')
+             ->with(
+             'status',
+             'Votre demande a été envoyée avec succès.'
+            );
+
     }
 }
