@@ -218,6 +218,13 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::put('/commercial/exposants/{exhibitor}', [CommercialExhibitorController::class, 'update'])->whereNumber('exhibitor')->name('commercial.exhibitors.update');
     Route::post('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'createAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access');
     Route::patch('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'toggleAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access.toggle');
+
+    // Badges des exposants du commercial
+    Route::get('/commercial/badges', [App\Http\Controllers\CommercialBadgeController::class, 'index'])->name('commercial.badges.index');
+    Route::get('/commercial/badges/export', [App\Http\Controllers\CommercialBadgeController::class, 'export'])->name('commercial.badges.export');
+    Route::post('/commercial/badges/{badge}/print', [App\Http\Controllers\CommercialBadgeController::class, 'print'])->whereNumber('badge')->name('commercial.badges.print');
+    Route::post('/commercial/badges/exposants/{exhibitor}/print', [App\Http\Controllers\CommercialBadgeController::class, 'printExhibitor'])->whereNumber('exhibitor')->name('commercial.badges.print-exhibitor');
+    Route::patch('/commercial/badges/exposants/{exhibitor}/quota', [App\Http\Controllers\CommercialBadgeController::class, 'updateQuota'])->whereNumber('exhibitor')->name('commercial.badges.quota');
     
     Route::get(
     '/commercial/assistance',
