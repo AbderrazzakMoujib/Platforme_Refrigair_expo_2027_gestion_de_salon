@@ -289,7 +289,7 @@ class CommercialBadgeController extends Controller
             margin: 10
         );
 
-        return (new SvgWriter())->write($qrCode)->getDataUri();
+        return (new SvgWriter)->write($qrCode)->getDataUri();
     }
 
     private function layoutData(User $commercial): array
