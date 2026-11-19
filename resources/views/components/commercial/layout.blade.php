@@ -16,6 +16,12 @@
             'active' => request()->routeIs('commercial.exhibitors.*'),
         ],
         [
+            'label' => 'Badges',
+            'icon' => 'badge',
+            'route' => 'commercial.badges.index',
+            'active' => request()->routeIs('commercial.badges.*'),
+        ],
+        [
             'label' => 'Assistance exposants',
             'icon' => 'inbox',
             'route' => 'commercial.support.index',
@@ -95,12 +101,7 @@
                     :available="true"
                 />
 
-                @if ($item['route'] === 'commercial.exhibitors.index')
-
-                    <x-admin.sidebar-link
-                        label="Badges"
-                        icon="badge"
-                    />
+                @if ($item['route'] === 'commercial.badges.index')
 
                     <x-admin.sidebar-link
                         label="Demandes d'équipements"
@@ -191,12 +192,7 @@
                                     :available="true"
                                 />
 
-                                @if ($item['route'] === 'commercial.exhibitors.index')
-
-                                    <x-admin.sidebar-link
-                                        label="Badges"
-                                        icon="badge"
-                                    />
+                                @if ($item['route'] === 'commercial.badges.index')
 
                                     <x-admin.sidebar-link
                                         label="Demandes d'équipements"
