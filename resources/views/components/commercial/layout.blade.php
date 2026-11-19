@@ -105,6 +105,9 @@
                     <x-admin.sidebar-link
                         label="Demandes d'équipements"
                         icon="box"
+                        :href="route('commercial.requests.index')"
+                        :active="request()->routeIs('commercial.requests.*')"
+                        :available="true"
                     />
 
                 @endif
@@ -201,6 +204,9 @@
                                     <x-admin.sidebar-link
                                         label="Demandes d'équipements"
                                         icon="box"
+                                        :href="route('commercial.requests.index')"
+                                        :active="request()->routeIs('commercial.requests.*')"
+                                        :available="true"
                                     />
 
                                 @endif

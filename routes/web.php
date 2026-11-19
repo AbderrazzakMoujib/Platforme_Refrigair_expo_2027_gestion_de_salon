@@ -218,6 +218,12 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::put('/commercial/exposants/{exhibitor}', [CommercialExhibitorController::class, 'update'])->whereNumber('exhibitor')->name('commercial.exhibitors.update');
     Route::post('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'createAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access');
     Route::patch('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'toggleAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access.toggle');
+
+    // Demandes d'équipements des exposants du commercial
+    Route::get('/commercial/demandes', [App\Http\Controllers\CommercialEquipmentRequestController::class, 'index'])->name('commercial.requests.index');
+    Route::get('/commercial/demandes/create', [App\Http\Controllers\CommercialEquipmentRequestController::class, 'create'])->name('commercial.requests.create');
+    Route::post('/commercial/demandes', [App\Http\Controllers\CommercialEquipmentRequestController::class, 'store'])->name('commercial.requests.store');
+    Route::get('/commercial/demandes/{equipmentRequest}', [App\Http\Controllers\CommercialEquipmentRequestController::class, 'show'])->whereNumber('equipmentRequest')->name('commercial.requests.show');
     
     Route::get(
     '/commercial/assistance',
