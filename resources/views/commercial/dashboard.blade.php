@@ -71,41 +71,52 @@
     $linePoints = $ticketTrend->values()->map(fn ($day, $i) => $xAt($i).','.$yAt($day['count']))->implode(' ');
     $areaPath = 'M'.$xAt(0).','.$baseline.' L'.str_replace(' ', ' L', $linePoints).' L'.$xAt($lastIndex).','.$baseline.' Z';
     $trendTotal = (int) $ticketTrend->sum('count');
+    // Environ 6 dates sur l'axe, quelle que soit la période (7 → chaque jour, 30 → tous les 5 jours, 90 → tous les 15 jours).
+    $labelStep = max(1, intdiv($ticketTrend->count(), 6));
 @endphp
 
 <x-commercial.layout :commercial="$commercial" :commercial-initials="$commercialInitials">
     {{-- En-tête --}}
     <div class="min-w-0">
         <p class="text-sm font-semibold text-[#2563EB]">Vue globale</p>
-        <h1 class="mt-1 break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Bonjour, {{ $commercial->name }}</h1>
+        <h1 class="mt-1 break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Bonjour, {{ $commercial->name }} <span aria-hidden="true">👋</span></h1>
         <p class="mt-2 text-sm text-slate-500">Bienvenue dans votre espace Commercial Refrigair Expo 2027.</p>
     </div>
 
     {{-- Indicateurs clés --}}
     <section class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicateurs clés">
-        <x-admin.stat-card
+        <x-commercial.stat-card
             label="Exposants suivis"
             :value="$fmt($exhibitorsCount)"
             icon="users"
-            :description="'+'.$fmt($newExhibitorsThisMonth).' ce mois'"
+            tone="blue"
+            :trend="$newExhibitorsThisMonth > 0 ? '↑ +'.$fmt($newExhibitorsThisMonth).' ce mois' : '= 0 ce mois'"
+            :trend-tone="$newExhibitorsThisMonth > 0 ? 'emerald' : 'slate'"
         />
-        <x-admin.stat-card
+        <x-commercial.stat-card
             label="Demandes actives"
             :value="$fmt($activeTickets)"
             icon="inbox"
-            :description="'+'.$fmt($newTicketsToday).' aujourd\'hui · '.$fmt($pendingTickets).' en attente'"
+            tone="amber"
+            :trend="$newTicketsToday > 0 ? '↑ +'.$fmt($newTicketsToday).' aujourd\'hui' : '= 0 aujourd\'hui'"
+            :trend-tone="$newTicketsToday > 0 ? 'red' : 'slate'"
+            :description="$fmt($pendingTickets).' en attente de réponse'"
         />
-        <x-admin.stat-card
+        <x-commercial.stat-card
             label="Demandes résolues"
             :value="$fmt($resolvedTickets)"
             icon="clipboard-check"
-            :description="'+'.$fmt($resolvedTicketsThisMonth).' ce mois'"
+            tone="emerald"
+            :trend="$resolvedTicketsThisMonth > 0 ? '↑ +'.$fmt($resolvedTicketsThisMonth).' ce mois' : '= 0 ce mois'"
+            :trend-tone="$resolvedTicketsThisMonth > 0 ? 'emerald' : 'slate'"
         />
-        <x-admin.stat-card
+        <x-commercial.stat-card
             label="Notifications"
             :value="$fmt($unreadNotificationsCount)"
             icon="bell"
-            :description="$unreadNotificationsCount > 0 ? 'Non lues' : 'Aucune notification non lue'"
+            tone="violet"
+            :trend="$unreadNotificationsCount > 0 ? 'Non lues' : 'Aucune non lue'"
+            :trend-tone="$unreadNotificationsCount > 0 ? 'violet' : 'slate'"
         />
     </section>
 
@@ -193,13 +204,24 @@
     {{-- Évolution + répartition des demandes --}}
     <section class="mt-6 grid gap-6 xl:grid-cols-5">
         <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70 sm:p-6 xl:col-span-3" aria-labelledby="trend-title">
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="trend-title" class="text-lg font-bold text-slate-900">Évolution des demandes</h2>
-                <p class="text-xs font-medium text-slate-500">30 derniers jours · {{ $fmt($trendTotal) }} demande{{ $trendTotal > 1 ? 's' : '' }}</p>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 id="trend-title" class="text-lg font-bold text-slate-900">Évolution des demandes</h2>
+                    <p class="mt-0.5 text-xs font-medium text-slate-500">{{ $trendDays }} derniers jours · {{ $fmt($trendTotal) }} demande{{ $trendTotal > 1 ? 's' : '' }}</p>
+                </div>
+                <form method="GET" action="{{ route('commercial.index') }}" class="flex items-center gap-2">
+                    <label for="period" class="sr-only">Période</label>
+                    <select id="period" name="period" onchange="this.form.submit()" class="rounded-lg border-slate-200 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        @foreach ($trendPeriods as $days)
+                            <option value="{{ $days }}" @selected($trendDays === $days)>{{ $days }} derniers jours</option>
+                        @endforeach
+                    </select>
+                    <noscript><button class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700">OK</button></noscript>
+                </form>
             </div>
 
             <div class="relative mt-4">
-                <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="h-auto w-full" role="img" aria-label="Nombre de demandes d'assistance créées par jour sur les 30 derniers jours">
+                <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="h-auto w-full" role="img" aria-label="Nombre de demandes d'assistance créées par jour sur les {{ $trendDays }} derniers jours">
                     @foreach ([0, $yMax / 2, $yMax] as $tick)
                         <line x1="{{ $padL }}" x2="{{ $chartW - $padR }}" y1="{{ $yAt((int) $tick) }}" y2="{{ $yAt((int) $tick) }}" stroke="#E2E8F0" stroke-width="1" />
                         <text x="{{ $padL - 8 }}" y="{{ $yAt((int) $tick) + 4 }}" text-anchor="end" class="fill-slate-400" font-size="11">{{ (int) $tick }}</text>
@@ -209,7 +231,7 @@
                     <polyline points="{{ $linePoints }}" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
 
                     @foreach ($ticketTrend->values() as $i => $day)
-                        @if ($i % 5 === 0 || $i === $lastIndex)
+                        @if ($i % $labelStep === 0 || $i === $lastIndex)
                             <text x="{{ $xAt($i) }}" y="{{ $chartH - 6 }}" text-anchor="{{ $i === 0 ? 'start' : ($i === $lastIndex ? 'end' : 'middle') }}" class="fill-slate-400" font-size="11">{{ $day['date']->format('d/m') }}</text>
                         @endif
                         <g class="group">

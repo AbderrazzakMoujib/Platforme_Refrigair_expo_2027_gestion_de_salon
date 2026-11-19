@@ -24,11 +24,19 @@ class CommercialDashboardController extends Controller
 
     private const FOLLOW_UP_LIMIT = 5;
 
-    private const TREND_DAYS = 30;
+    /** Périodes proposées pour la courbe des demandes (en jours). */
+    public const TREND_PERIODS = [7, 30, 90];
+
+    private const DEFAULT_TREND_DAYS = 30;
 
     public function __invoke(Request $request): View
     {
         $commercial = $request->user();
+
+        $trendDays = (int) $request->query('period', self::DEFAULT_TREND_DAYS);
+        if (! in_array($trendDays, self::TREND_PERIODS, true)) {
+            $trendDays = self::DEFAULT_TREND_DAYS;
+        }
 
         // Uniquement les exposants rattachés au commercial connecté.
         $exhibitors = $commercial->exhibitors()
@@ -87,7 +95,9 @@ class CommercialDashboardController extends Controller
                 ->latest('id')
                 ->limit(self::RECENT_LIMIT)
                 ->get(),
-            'ticketTrend' => $this->dailyTicketTrend($tickets()),
+            'ticketTrend' => $this->dailyTicketTrend($tickets(), $trendDays),
+            'trendDays' => $trendDays,
+            'trendPeriods' => self::TREND_PERIODS,
             'unreadNotificationsCount' => $commercial->unreadNotifications()->count(),
 
             'exhibitorsCount' => $exhibitors->count(),
@@ -114,13 +124,13 @@ class CommercialDashboardController extends Controller
     }
 
     /**
-     * Nombre de demandes créées par jour sur les 30 derniers jours (jours vides inclus).
+     * Nombre de demandes créées par jour sur les $days derniers jours (jours vides inclus).
      *
      * @return Collection<int, array{date: Carbon, count: int}>
      */
-    private function dailyTicketTrend(Builder $query): Collection
+    private function dailyTicketTrend(Builder $query, int $days): Collection
     {
-        $start = now()->startOfDay()->subDays(self::TREND_DAYS - 1);
+        $start = now()->startOfDay()->subDays($days - 1);
 
         // Regroupement en PHP pour rester compatible SQLite / MySQL.
         $countsByDay = $query
@@ -128,7 +138,7 @@ class CommercialDashboardController extends Controller
             ->pluck('created_at')
             ->countBy(fn ($createdAt) => Carbon::parse($createdAt)->toDateString());
 
-        return collect(range(0, self::TREND_DAYS - 1))->map(function (int $offset) use ($start, $countsByDay): array {
+        return collect(range(0, $days - 1))->map(function (int $offset) use ($start, $countsByDay): array {
             $date = $start->copy()->addDays($offset);
 
             return [

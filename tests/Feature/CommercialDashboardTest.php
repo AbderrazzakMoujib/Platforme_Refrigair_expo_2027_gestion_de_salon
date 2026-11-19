@@ -246,6 +246,65 @@ class CommercialDashboardTest extends TestCase
             ->assertDontSee('Demande Incoherente');
     }
 
+    public function test_trend_period_can_be_changed_and_falls_back_to_thirty_days(): void
+    {
+        $commercial = User::factory()->create(['role' => 'commercial']);
+        $exhibitor = $this->exhibitorFor($commercial, 'ClimaTech', 1);
+        $this->ticketFor($exhibitor, $commercial, 'pending', 'Récente');
+        $this->ticketFor($exhibitor, $commercial, 'pending', 'Il y a 20 jours', ['created_at' => now()->subDays(20)]);
+        $this->ticketFor($exhibitor, $commercial, 'pending', 'Il y a 60 jours', ['created_at' => now()->subDays(60)]);
+
+        $this->actingAs($commercial);
+
+        foreach ([7 => 1, 30 => 2, 90 => 3] as $days => $expected) {
+            $trend = $this->get(route('commercial.index', ['period' => $days]))
+                ->assertOk()
+                ->assertViewHas('trendDays', $days)
+                ->assertSee($days.' derniers jours')
+                ->viewData('ticketTrend');
+
+            $this->assertCount($days, $trend);
+            $this->assertSame($expected, $trend->sum('count'), "Période {$days} jours");
+        }
+
+        $this->get(route('commercial.index', ['period' => 365]))
+            ->assertOk()
+            ->assertViewHas('trendDays', 30);
+    }
+
+    public function test_sidebar_shows_pending_support_and_unread_notification_counts(): void
+    {
+        $commercial = User::factory()->create(['role' => 'commercial']);
+        $other = User::factory()->create(['role' => 'commercial']);
+        $exhibitor = $this->exhibitorFor($commercial, 'ClimaTech', 1);
+
+        $this->ticketFor($exhibitor, $commercial, 'pending', 'A');
+        $this->ticketFor($exhibitor, $commercial, 'pending', 'B');
+        $this->ticketFor($exhibitor, $commercial, 'resolved', 'C');
+        $this->ticketFor($this->exhibitorFor($other, 'Concurrent', 1), $other, 'pending', 'D');
+
+        foreach (range(1, 3) as $i) {
+            $commercial->notifications()->create([
+                'id' => (string) Str::uuid(), 'type' => 'test', 'data' => ['n' => $i],
+            ]);
+        }
+
+        $this->actingAs($commercial)->get(route('commercial.index'))
+            ->assertOk()
+            ->assertSee('data-nav-count="commercial.support.index"', false)
+            ->assertSeeInOrder(['data-nav-count="commercial.support.index"', '2', 'demande(s) en attente'], false)
+            ->assertSeeInOrder(['data-nav-count="commercial.notifications.index"', '3', 'notification(s) non lue(s)'], false);
+    }
+
+    public function test_sidebar_hides_counts_when_nothing_is_pending(): void
+    {
+        $commercial = User::factory()->create(['role' => 'commercial']);
+
+        $this->actingAs($commercial)->get(route('commercial.index'))
+            ->assertOk()
+            ->assertDontSee('data-nav-count=', false);
+    }
+
     public function test_dashboard_is_forbidden_to_other_roles_and_guests(): void
     {
         $this->get(route('commercial.index'))->assertRedirect(route('login'));

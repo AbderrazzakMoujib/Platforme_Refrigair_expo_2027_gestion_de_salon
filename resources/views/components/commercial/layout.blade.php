@@ -36,6 +36,22 @@
     ];
 @endphp
 
+@php
+    // Compteurs affichés dans la navigation (données du commercial connecté uniquement).
+    $navCounts = [
+        'commercial.support.index' => \App\Models\SupportTicket::query()
+            ->where('commercial_id', $commercial->id)
+            ->whereHas('exhibitor', fn ($query) => $query->where('commercial_id', $commercial->id))
+            ->where('status', 'pending')
+            ->count(),
+        'commercial.notifications.index' => $commercial->unreadNotifications()->count(),
+    ];
+    $navCountLabels = [
+        'commercial.support.index' => 'demande(s) en attente',
+        'commercial.notifications.index' => 'notification(s) non lue(s)',
+    ];
+@endphp
+
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -87,13 +103,20 @@
 
             @foreach ($navigation as $item)
 
-                <x-admin.sidebar-link
-                    :label="$item['label']"
-                    :icon="$item['icon']"
-                    :href="route($item['route'])"
-                    :active="$item['active']"
-                    :available="true"
-                />
+                <div class="relative">
+                    <x-admin.sidebar-link
+                        :label="$item['label']"
+                        :icon="$item['icon']"
+                        :href="route($item['route'])"
+                        :active="$item['active']"
+                        :available="true"
+                    />
+                    @if (($navCounts[$item['route']] ?? 0) > 0)
+                        <span class="pointer-events-none absolute right-3 top-1/2 min-w-5 -translate-y-1/2 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[11px] font-bold leading-4 text-white" data-nav-count="{{ $item['route'] }}">
+                            {{ $navCounts[$item['route']] > 99 ? '99+' : $navCounts[$item['route']] }}<span class="sr-only"> {{ $navCountLabels[$item['route']] }}</span>
+                        </span>
+                    @endif
+                </div>
 
                 @if ($item['route'] === 'commercial.exhibitors.index')
 
@@ -183,13 +206,20 @@
 
                             @foreach ($navigation as $item)
 
-                                <x-admin.sidebar-link
-                                    :label="$item['label']"
-                                    :icon="$item['icon']"
-                                    :href="route($item['route'])"
-                                    :active="$item['active']"
-                                    :available="true"
-                                />
+                                <div class="relative">
+                                    <x-admin.sidebar-link
+                                        :label="$item['label']"
+                                        :icon="$item['icon']"
+                                        :href="route($item['route'])"
+                                        :active="$item['active']"
+                                        :available="true"
+                                    />
+                                    @if (($navCounts[$item['route']] ?? 0) > 0)
+                                        <span class="pointer-events-none absolute right-3 top-1/2 min-w-5 -translate-y-1/2 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[11px] font-bold leading-4 text-white">
+                                            {{ $navCounts[$item['route']] > 99 ? '99+' : $navCounts[$item['route']] }}<span class="sr-only"> {{ $navCountLabels[$item['route']] }}</span>
+                                        </span>
+                                    @endif
+                                </div>
 
                                 @if ($item['route'] === 'commercial.exhibitors.index')
 
