@@ -22,6 +22,18 @@
             'active' => request()->routeIs('commercial.badges.*'),
         ],
         [
+    'label' => 'Équipements',
+    'icon' => 'box',
+    'route' => 'commercial.equipements.index',
+    'active' => request()->routeIs('commercial.equipements.*'),
+],
+[
+    'label' => "Demandes d'équipements",
+    'icon' => 'clipboard-check',
+    'route' => 'commercial.equipment-requests.index',
+    'active' => request()->routeIs('commercial.equipment-requests.*'),
+],
+        [
             'label' => 'Assistance exposants',
             'icon' => 'inbox',
             'route' => 'commercial.support.index',
@@ -46,13 +58,18 @@
 <html lang="fr">
 
 <head>
+
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
-    <meta name="csrf-token"
-          content="{{ csrf_token() }}">
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token() }}"
+    >
 
     <title>
         {{ $title ?? 'Espace Commercial | Refrigair Expo 2027' }}
@@ -64,18 +81,30 @@
         href="{{ asset('assets/images/icons/favicon_io.png') }}"
     >
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite([
+        'resources/css/app.css',
+        'resources/js/app.js'
+    ])
+
 </head>
 
 <body class="min-h-screen bg-[#F5F7FB] font-sans text-slate-900 antialiased">
 
-    <!-- DESKTOP SIDEBAR -->
+
+    {{-- ===================================================== --}}
+    {{-- DESKTOP SIDEBAR --}}
+    {{-- ===================================================== --}}
+
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-[#0F2347] px-5 py-6 md:flex">
 
-        <!-- LOGO -->
-        <a href="{{ route('commercial.index') }}"
-           class="flex min-h-16 items-center justify-center rounded-xl px-2 py-2"
-           aria-label="Refrigair Expo 2027">
+
+        {{-- LOGO --}}
+
+        <a
+            href="{{ route('commercial.index') }}"
+            class="flex min-h-16 items-center justify-center rounded-xl px-2 py-2"
+            aria-label="Refrigair Expo 2027"
+        >
 
             <img
                 src="{{ asset('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-Sans-titre-4-removebg-preview.png') }}"
@@ -85,7 +114,9 @@
 
         </a>
 
-        <!-- NAVIGATION -->
+
+        {{-- NAVIGATION --}}
+
         <nav
             class="mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto pb-5"
             aria-label="Navigation commerciale"
@@ -101,20 +132,13 @@
                     :available="true"
                 />
 
-                @if ($item['route'] === 'commercial.badges.index')
-
-                    <x-admin.sidebar-link
-                        label="Demandes d'équipements"
-                        icon="box"
-                    />
-
-                @endif
-
             @endforeach
 
         </nav>
 
-        <!-- SIDEBAR FOOTER -->
+
+        {{-- SIDEBAR FOOTER --}}
+
         <div class="shrink-0 rounded-xl border border-white/10 bg-white/5 p-4">
 
             <div class="flex items-center gap-3">
@@ -131,19 +155,25 @@
                 <div>
 
                     <p class="text-sm font-bold text-white">
+
                         Assistance exposants
+
                     </p>
 
                     <p class="mt-1 text-xs text-blue-200">
+
                         Suivi de vos clients
+
                     </p>
 
                 </div>
 
             </div>
 
-            <a href="{{ route('commercial.support.index') }}"
-               class="mt-4 block rounded-xl bg-[#2563EB] px-4 py-3 text-center text-sm font-bold text-white hover:bg-blue-600">
+            <a
+                href="{{ route('commercial.support.index') }}"
+                class="mt-4 block rounded-xl bg-[#2563EB] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-600"
+            >
 
                 Voir les demandes
 
@@ -153,20 +183,29 @@
 
     </aside>
 
-    <!-- MAIN AREA -->
+
+    {{-- ===================================================== --}}
+    {{-- MAIN AREA --}}
+    {{-- ===================================================== --}}
+
     <div class="min-h-screen md:pl-72">
 
-        <!-- HEADER -->
+
+        {{-- HEADER --}}
+
         <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur md:px-8">
 
             <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
 
-                <!-- MOBILE MENU -->
+
+                {{-- MOBILE MENU --}}
+
                 <details class="relative md:hidden">
 
                     <summary
                         class="grid size-10 cursor-pointer list-none place-items-center rounded-lg border border-slate-200 text-slate-700"
-                        aria-label="Ouvrir le menu">
+                        aria-label="Ouvrir le menu"
+                    >
 
                         <x-admin.icon
                             name="menu"
@@ -192,15 +231,6 @@
                                     :available="true"
                                 />
 
-                                @if ($item['route'] === 'commercial.badges.index')
-
-                                    <x-admin.sidebar-link
-                                        label="Demandes d'équipements"
-                                        icon="box"
-                                    />
-
-                                @endif
-
                             @endforeach
 
                         </nav>
@@ -209,26 +239,38 @@
 
                 </details>
 
-                <!-- HEADER TITLE -->
+
+                {{-- HEADER TITLE --}}
+
                 <p class="hidden text-sm font-medium text-slate-500 sm:block">
+
                     Espace Commercial · Refrigair Expo 2027
+
                 </p>
 
-                <!-- HEADER RIGHT -->
+
+                {{-- HEADER RIGHT --}}
+
                 <div class="ml-auto flex items-center gap-2 sm:gap-4">
 
-                    <!-- LIVE NOTIFICATIONS -->
+
+                    {{-- LIVE NOTIFICATIONS --}}
+
                     <x-notifications.live
                         :user="$commercial"
                         index-route="commercial.notifications.index"
                         open-route="commercial.notifications.open"
                     />
 
-                    <!-- ASSISTANCE SHORTCUT -->
-                    <a href="{{ route('commercial.support.index') }}"
-                       class="grid size-10 place-items-center rounded-lg text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
-                       title="Assistance exposants"
-                       aria-label="Assistance exposants">
+
+                    {{-- ASSISTANCE SHORTCUT --}}
+
+                    <a
+                        href="{{ route('commercial.support.index') }}"
+                        class="grid size-10 place-items-center rounded-lg text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                        title="Assistance exposants"
+                        aria-label="Assistance exposants"
+                    >
 
                         <x-admin.icon
                             name="inbox"
@@ -237,24 +279,34 @@
 
                     </a>
 
-                    <!-- COMMERCIAL NAME -->
+
+                    {{-- COMMERCIAL NAME --}}
+
                     <div class="hidden text-right sm:block">
 
                         <p class="text-sm font-semibold text-slate-800">
+
                             {{ $commercial->name }}
+
                         </p>
 
                         <p class="text-xs text-slate-500">
+
                             Commercial
+
                         </p>
 
                     </div>
 
-                    <!-- PROFILE PHOTO -->
-                    <a href="{{ route('commercial.profile.edit') }}"
-                       class="block size-11 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200 transition hover:ring-blue-400"
-                       title="Mon profil"
-                       aria-label="Accéder à mon profil">
+
+                    {{-- PROFILE PHOTO --}}
+
+                    <a
+                        href="{{ route('commercial.profile.edit') }}"
+                        class="block size-11 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200 transition hover:ring-blue-400"
+                        title="Mon profil"
+                        aria-label="Accéder à mon profil"
+                    >
 
                         @if ($commercial->profile_photo_url)
 
@@ -276,9 +328,13 @@
 
                     </a>
 
-                    <!-- LOGOUT -->
-                    <form method="POST"
-                          action="{{ route('logout') }}">
+
+                    {{-- LOGOUT --}}
+
+                    <form
+                        method="POST"
+                        action="{{ route('logout') }}"
+                    >
 
                         @csrf
 
@@ -293,7 +349,9 @@
                             />
 
                             <span class="hidden sm:inline">
+
                                 Déconnexion
+
                             </span>
 
                         </button>
@@ -306,7 +364,11 @@
 
         </header>
 
-        <!-- CONTENT -->
+
+        {{-- ===================================================== --}}
+        {{-- PAGE CONTENT --}}
+        {{-- ===================================================== --}}
+
         <main class="mx-auto max-w-7xl px-4 py-7 md:px-8 md:py-9">
 
             {{ $slot }}
