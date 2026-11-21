@@ -7,7 +7,9 @@ use App\Models\EquipmentRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use App\Notifications\EquipmentRequestStatusNotification;
 use Illuminate\View\View;
 
 class CommercialEquipmentRequestController extends Controller
@@ -702,6 +704,172 @@ class CommercialEquipmentRequestController extends Controller
     |--------------------------------------------------------------------------
     */
 
+
+/**
+ * Validation d'une demande par le commercial responsable.
+ */
+public function approve(
+    Request $request,
+    EquipmentRequest $equipmentRequest
+): RedirectResponse {
+    $commercial = $request->user();
+
+    DB::transaction(function () use ($equipmentRequest, $commercial) {
+
+        // Verrouiller la demande pendant le traitement.
+        $order = EquipmentRequest::query()
+            ->whereKey($equipmentRequest->id)
+            ->whereHas(
+                'exhibitor',
+                fn ($query) => $query->where(
+                    'commercial_id',
+                    $commercial->id
+                )
+            )
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if ($order->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Cette demande a déjà été traitée.',
+            ]);
+        }
+
+        $items = $order->items()
+            ->orderBy('equipment_id')
+            ->get();
+
+        if ($items->isEmpty()) {
+            throw ValidationException::withMessages([
+                'status' => 'La demande ne contient aucun équipement.',
+            ]);
+        }
+
+        // Vérifier et déduire les quantités.
+        foreach ($items as $item) {
+            $equipment = Equipment::query()
+                ->whereKey($item->equipment_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $equipment->is_active) {
+                throw ValidationException::withMessages([
+                    'status' => "Équipement indisponible : {$item->equipment_name}.",
+                ]);
+            }
+
+            if ($equipment->quantity_available < $item->quantity) {
+                throw ValidationException::withMessages([
+                    'status' => "Stock insuffisant : {$item->equipment_name}.",
+                ]);
+            }
+
+            $equipment->decrement(
+                'quantity_available',
+                $item->quantity
+            );
+        }
+
+        $order->update([
+            'status' => 'approved',
+            'reviewed_by' => $commercial->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => null,
+        ]);
+    }, 3);
+
+    $equipmentRequest->refresh();
+
+    $this->notifyDecision($equipmentRequest);
+
+    return redirect()
+        ->route('commercial.equipment-requests.show', $equipmentRequest)
+        ->with('status', 'Demande approuvée avec succès.');
+}
+
+/**
+ * Refus d'une demande par le commercial responsable.
+ */
+public function reject(
+    Request $request,
+    EquipmentRequest $equipmentRequest
+): RedirectResponse {
+    $data = $request->validate([
+        'rejection_reason' => [
+            'required',
+            'string',
+            'max:2000',
+        ],
+    ]);
+
+    $commercial = $request->user();
+
+    DB::transaction(function () use (
+        $equipmentRequest,
+        $commercial,
+        $data
+    ) {
+        $order = EquipmentRequest::query()
+            ->whereKey($equipmentRequest->id)
+            ->whereHas(
+                'exhibitor',
+                fn ($query) => $query->where(
+                    'commercial_id',
+                    $commercial->id
+                )
+            )
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if ($order->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Cette demande a déjà été traitée.',
+            ]);
+        }
+
+        $order->update([
+            'status' => 'rejected',
+            'rejection_reason' => $data['rejection_reason'],
+            'reviewed_by' => $commercial->id,
+            'reviewed_at' => now(),
+        ]);
+    }, 3);
+
+    $equipmentRequest->refresh();
+
+    $this->notifyDecision($equipmentRequest);
+
+    return redirect()
+        ->route('commercial.equipment-requests.show', $equipmentRequest)
+        ->with('status', 'Demande refusée avec succès.');
+}
+
+/**
+ * Informer l'exposant et l'administration du résultat.
+ */
+private function notifyDecision(
+    EquipmentRequest $equipmentRequest
+): void {
+    $equipmentRequest->load('exhibitor.user');
+
+    $recipients = \App\Models\User::query()
+        ->where('role', 'admin')
+        ->where('is_active', true)
+        ->get();
+
+    $exhibitorUser = $equipmentRequest->exhibitor?->user;
+
+    if ($exhibitorUser && $exhibitorUser->is_active) {
+        $recipients->push($exhibitorUser);
+    }
+
+    Notification::send(
+        $recipients->unique('id'),
+        new EquipmentRequestStatusNotification($equipmentRequest)
+    );
+}
+
+
     private function layoutData(Request $request): array
     {
 
@@ -742,3 +910,5 @@ class CommercialEquipmentRequestController extends Controller
     }
 
 }
+
+

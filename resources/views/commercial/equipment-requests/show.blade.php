@@ -651,13 +651,13 @@
                 <article class="rounded-2xl border border-blue-100 bg-blue-50 p-5">
 
                     <h3 class="text-sm font-bold text-blue-900">
-                        Gestion administrative
+                        Gestion commerciale
                     </h3>
 
                     <p class="mt-2 text-xs leading-6 text-blue-700">
 
                         La validation ou le refus de cette demande
-                        est effectué par l'administration du salon.
+                        est effectué par le commercial responsable de l'exposant.
 
                     </p>
 
@@ -667,11 +667,6 @@
 
         </section>
 
-        <footer class="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-
-            © 2027 Refrigair Expo — Espace Commercial
-
-        </footer>
 
     </div>
 
@@ -701,5 +696,88 @@
 
         })();
     </script>
+
+
+@if ($equipmentRequest->status === 'pending')
+
+<section class="mt-6 grid gap-5 lg:grid-cols-2">
+
+    {{-- APPROUVER --}}
+    <div class="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
+
+        <h3 class="text-lg font-bold text-[#0F2347]">
+            Approuver la demande
+        </h3>
+
+        <p class="mt-2 text-sm text-slate-500">
+            Vérifier le stock et confirmer la demande
+            de cet exposant.
+        </p>
+
+        <form
+            method="POST"
+            action="{{ route('commercial.equipment-requests.approve', $equipmentRequest) }}"
+            class="mt-5"
+        >
+            @csrf
+            @method('PATCH')
+
+            <button
+                type="submit"
+                onclick="return confirm('Confirmer la validation de cette demande ?')"
+                class="w-full rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white transition hover:bg-emerald-700"
+            >
+                Approuver la demande
+            </button>
+        </form>
+    </div>
+
+    {{-- REFUSER --}}
+    <div class="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+
+        <h3 class="text-lg font-bold text-[#0F2347]">
+            Refuser la demande
+        </h3>
+
+        <p class="mt-2 text-sm text-slate-500">
+            Indiquez la raison du refus.
+        </p>
+
+        <form
+            method="POST"
+            action="{{ route('commercial.equipment-requests.reject', $equipmentRequest) }}"
+            class="mt-5 space-y-4"
+        >
+            @csrf
+            @method('PATCH')
+
+            <textarea
+                name="rejection_reason"
+                rows="3"
+                maxlength="2000"
+                required
+                placeholder="Motif du refus..."
+                class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-red-500 focus:ring-red-500"
+            >{{ old('rejection_reason') }}</textarea>
+
+            <button
+                type="submit"
+                class="w-full rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700"
+            >
+                Refuser la demande
+            </button>
+        </form>
+    </div>
+
+</section>
+
+@endif
+
+
+        <footer class="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+
+            © 2027 Refrigair Expo — Espace Commercial
+
+        </footer>
 
 </x-commercial.layout>

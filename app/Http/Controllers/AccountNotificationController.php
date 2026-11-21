@@ -127,6 +127,51 @@ class AccountNotificationController extends Controller
             $this->routePrefix($request) . '.index'
         );
 
+
+        // Ouvrir une notification de demande d'équipements.
+        if (($data['type'] ?? null) === 'equipment_request') {
+
+            $orderId = $data['equipment_request_id'] ?? null;
+
+            if (
+                !is_scalar($orderId)
+                || !ctype_digit((string) $orderId)
+                || (int) $orderId < 1
+            ) {
+                return redirect()->to($fallback);
+            }
+
+            $orderId = (int) $orderId;
+
+            // Le commercial ne peut accéder qu'aux
+            // demandes des exposants dont il est responsable.
+            if ($user->role === UserRole::Commercial) {
+
+                $exists = \App\Models\EquipmentRequest::query()
+                    ->whereKey($orderId)
+                    ->whereHas(
+                        'exhibitor',
+                        fn ($query) => $query->where(
+                            'commercial_id',
+                            $user->id
+                        )
+                    )
+                    ->exists();
+
+                if (!$exists) {
+                    return redirect()->to($fallback);
+                }
+
+                return redirect()->route(
+                    'commercial.equipment-requests.show',
+                    $orderId
+                );
+            }
+
+            return redirect()->to($fallback);
+        }
+
+
         if (
             ($data['type'] ?? null) !== 'support'
             || !isset($data['ticket_id'])

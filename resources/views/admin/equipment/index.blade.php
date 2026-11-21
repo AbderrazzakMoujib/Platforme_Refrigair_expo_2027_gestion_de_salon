@@ -292,7 +292,7 @@
                     <tr>
                         <th class="px-5 py-4">Équipement</th>
                         <th class="px-5 py-4">Catégorie</th>
-                        <th class="px-5 py-4">Commercial</th>
+                        <th class="px-5 py-4">Ajouté par</th>
                         <th class="px-5 py-4">Prix</th>
                         <th class="px-5 py-4">Quantité</th>
                         <th class="px-5 py-4">Statut</th>

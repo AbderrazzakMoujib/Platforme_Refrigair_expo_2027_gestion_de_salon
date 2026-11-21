@@ -80,14 +80,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     ->whereNumber('equipmentRequest')
     ->name('demandes.show');
 
-    Route::patch('/demandes/{equipmentRequest}/approve', [EquipmentRequestController::class, 'approve'])
-    ->whereNumber('equipmentRequest')
-    ->name('demandes.approve');
-
-    Route::patch('/demandes/{equipmentRequest}/reject', [EquipmentRequestController::class, 'reject'])
-    ->whereNumber('equipmentRequest')
-    ->name('demandes.reject');
-
     Route::get('/statistiques', StatisticsController::class)
     ->name('statistiques.index');
 
@@ -312,6 +304,19 @@ Route::patch('/commercial/equipements/{equipment}/toggle',
     [CommercialEquipmentController::class, 'toggle']
 )->whereNumber('equipment')
  ->name('commercial.equipements.toggle');
+
+
+ Route::patch(
+    '/commercial/demandes-equipements/{equipmentRequest}/approve',
+    [\App\Http\Controllers\CommercialEquipmentRequestController::class, 'approve']
+)->whereNumber('equipmentRequest')
+  ->name('commercial.equipment-requests.approve');
+
+Route::patch(
+    '/commercial/demandes-equipements/{equipmentRequest}/reject',
+    [\App\Http\Controllers\CommercialEquipmentRequestController::class, 'reject']
+)->whereNumber('equipmentRequest')
+  ->name('commercial.equipment-requests.reject');
 
 });
 

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Equipment;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -29,26 +29,28 @@ class CommercialEquipmentController extends Controller
         ];
     }
 
-    private function equipmentQuery(Request $request)
+    /**
+     * Catalogue partagé entre Admin et tous les Commerciaux.
+     *
+     * commercial_id sert uniquement à identifier
+     * le créateur de l'équipement.
+     */
+    private function equipmentQuery()
     {
-        return Equipment::query()
-            ->where('commercial_id', $request->user()->id);
+        return Equipment::query();
     }
 
-    private function authorizeEquipment(
-        Request $request,
-        Equipment $equipment
-    ): void {
-        abort_unless(
-            (int) $equipment->commercial_id === (int) $request->user()->id,
-            403
-        );
-    }
-
+    /**
+     * Liste des équipements du catalogue commun.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
+            'search' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'category' => [
                 'nullable',
                 Rule::in(self::CATEGORIES),
@@ -59,33 +61,44 @@ class CommercialEquipmentController extends Controller
             ],
         ]);
 
-        $query = $this->equipmentQuery($request);
+        $baseQuery = $this->equipmentQuery();
 
-        $totalEquipment = (clone $query)->count();
+        $totalEquipment = (clone $baseQuery)->count();
 
-        $activeEquipment = (clone $query)
+        $activeEquipment = (clone $baseQuery)
             ->where('is_active', true)
             ->count();
 
-        $inactiveEquipment = (clone $query)
+        $inactiveEquipment = (clone $baseQuery)
             ->where('is_active', false)
             ->count();
 
-        $totalQuantity = (clone $query)
+        $totalQuantity = (int) (clone $baseQuery)
             ->where('is_active', true)
             ->sum('quantity_available');
+
+        $query = $this->equipmentQuery()
+            ->with('commercial:id,name');
 
         if (!empty($filters['search'])) {
             $term = trim($filters['search']);
 
             $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
-                    ->orWhere('description', 'like', "%{$term}%");
+                    ->orWhere('description', 'like', "%{$term}%")
+                    ->orWhereHas(
+                        'commercial',
+                        fn ($commercial) => $commercial
+                            ->where('name', 'like', "%{$term}%")
+                    );
             });
         }
 
         if (!empty($filters['category'])) {
-            $query->where('category', $filters['category']);
+            $query->where(
+                'category',
+                $filters['category']
+            );
         }
 
         if (!empty($filters['status'])) {
@@ -104,6 +117,7 @@ class CommercialEquipmentController extends Controller
                 ->withQueryString(),
 
             'categories' => self::CATEGORIES,
+
             'totalEquipment' => $totalEquipment,
             'activeEquipment' => $activeEquipment,
             'inactiveEquipment' => $inactiveEquipment,
@@ -111,6 +125,9 @@ class CommercialEquipmentController extends Controller
         ]);
     }
 
+    /**
+     * Formulaire de création.
+     */
     public function create(Request $request): View
     {
         return view('commercial.equipment.form', [
@@ -129,6 +146,9 @@ class CommercialEquipmentController extends Controller
         ]);
     }
 
+    /**
+     * Ajouter un équipement dans le catalogue commun.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
@@ -137,6 +157,8 @@ class CommercialEquipmentController extends Controller
 
         unset($data['image']);
 
+        // On conserve l'identité du créateur.
+        // Mais l'équipement reste visible par tous.
         $data['commercial_id'] = $request->user()->id;
 
         if ($image) {
@@ -148,9 +170,7 @@ class CommercialEquipmentController extends Controller
 
         try {
             Equipment::create($data);
-
         } catch (\Throwable $exception) {
-
             if (!empty($data['image_path'])) {
                 Storage::disk('public')
                     ->delete($data['image_path']);
@@ -161,16 +181,23 @@ class CommercialEquipmentController extends Controller
 
         return redirect()
             ->route('commercial.equipements.index')
-            ->with('status', 'Équipement ajouté avec succès.');
+            ->with(
+                'status',
+                'Équipement ajouté au catalogue commun avec succès.'
+            );
     }
 
+    /**
+     * Modifier n'importe quel équipement
+     * du catalogue commun.
+     *
+     * L'accès reste limité au rôle Commercial
+     * grâce aux middlewares des routes.
+     */
     public function edit(
         Request $request,
         Equipment $equipment
     ): View {
-
-        $this->authorizeEquipment($request, $equipment);
-
         return view('commercial.equipment.form', [
             ...$this->layoutData($request),
 
@@ -187,18 +214,22 @@ class CommercialEquipmentController extends Controller
         ]);
     }
 
+    /**
+     * Enregistrer les modifications
+     * d'un équipement partagé.
+     */
     public function update(
         Request $request,
         Equipment $equipment
     ): RedirectResponse {
-
-        $this->authorizeEquipment($request, $equipment);
-
         $data = $this->validated($request);
 
         $image = $data['image'] ?? null;
 
         unset($data['image']);
+
+        // commercial_id n'est jamais modifié ici.
+        // Le créateur original reste enregistré.
 
         $oldImage = $equipment->image_path;
         $newImage = null;
@@ -214,44 +245,50 @@ class CommercialEquipmentController extends Controller
 
         try {
             $equipment->update($data);
-
         } catch (\Throwable $exception) {
-
             if ($newImage) {
-                Storage::disk('public')->delete($newImage);
+                Storage::disk('public')
+                    ->delete($newImage);
             }
 
             throw $exception;
         }
 
         if ($newImage && $oldImage) {
-            Storage::disk('public')->delete($oldImage);
+            Storage::disk('public')
+                ->delete($oldImage);
         }
 
         return redirect()
             ->route('commercial.equipements.index')
-            ->with('status', 'Équipement modifié avec succès.');
+            ->with(
+                'status',
+                'Équipement du catalogue mis à jour avec succès.'
+            );
     }
 
+    /**
+     * Activer ou désactiver un équipement partagé.
+     */
     public function toggle(
         Request $request,
         Equipment $equipment
     ): RedirectResponse {
-
-        $this->authorizeEquipment($request, $equipment);
-
         $equipment->update([
-            'is_active' => !$equipment->is_active,
+            'is_active' => ! $equipment->is_active,
         ]);
 
         return back()->with(
             'status',
             $equipment->is_active
-                ? 'Équipement activé.'
-                : 'Équipement désactivé.'
+                ? 'Équipement activé dans le catalogue.'
+                : 'Équipement désactivé dans le catalogue.'
         );
     }
 
+    /**
+     * Validation commune Create / Update.
+     */
     private function validated(Request $request): array
     {
         return $request->validate([
