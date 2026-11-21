@@ -107,7 +107,7 @@
         >
 
             <img
-                src="{{ asset('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-Sans-titre-4-removebg-preview.png') }}"
+                src="{{ asset('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-logo-8.png') }}"
                 alt="Refrigair Expo 2027"
                 class="max-h-14 w-full max-w-[220px] object-contain"
             >
