@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Exhibitor;
 use App\Models\SupportTicket;
+use App\Services\SlotService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -74,6 +75,9 @@ class CommercialDashboardController extends Controller
         return view('commercial.dashboard', [
             'commercial' => $commercial,
             'commercialInitials' => $this->initials($commercial->name),
+
+            // Conférences & Lounge : créneaux vendus, CA et remplissage (chiffres globaux du salon).
+            'slotStats' => app(SlotService::class)->stats(),
 
             'newExhibitorsThisMonth' => $exhibitors
                 ->filter(fn (Exhibitor $exhibitor): bool => (bool) $exhibitor->created_at?->gte(now()->startOfMonth()))

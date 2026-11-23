@@ -63,6 +63,17 @@ class Exhibitor extends Model
         return $this->hasMany(Badge::class);
     }
 
+    /** Créneaux de conférence / lounge attribués à l'exposant. */
+    public function slots(): HasMany
+    {
+        return $this->hasMany(Slot::class);
+    }
+
+    public function slotRequests(): HasMany
+    {
+        return $this->hasMany(SlotRequest::class);
+    }
+
     public function getLogoUrlAttribute(): ?string
     {
         return $this->logo

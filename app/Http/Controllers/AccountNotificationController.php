@@ -171,6 +171,12 @@ class AccountNotificationController extends Controller
             return redirect()->to($fallback);
         }
 
+        // Conférences & Lounge : confirmation, refus, rappels → page de l'exposant.
+        if (($data['type'] ?? null) === 'conference') {
+            return $user->role === UserRole::Exposant
+                ? redirect()->route('exhibitor.slots.index')
+                : redirect()->to($fallback);
+        }
 
         if (
             ($data['type'] ?? null) !== 'support'

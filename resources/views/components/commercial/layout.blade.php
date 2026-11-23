@@ -34,6 +34,12 @@
     'active' => request()->routeIs('commercial.equipment-requests.*'),
 ],
         [
+            'label' => 'Conférences & Lounge',
+            'icon' => 'calendar',
+            'route' => 'commercial.slots.index',
+            'active' => request()->routeIs('commercial.slots.*', 'commercial.slot-requests.*'),
+        ],
+        [
             'label' => 'Assistance exposants',
             'icon' => 'inbox',
             'route' => 'commercial.support.index',

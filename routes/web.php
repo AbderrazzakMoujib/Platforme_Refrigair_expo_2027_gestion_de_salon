@@ -197,6 +197,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     [\App\Http\Controllers\Admin\SupportController::class, 'show']
     )->whereNumber('ticket')->name('support.show');
 
+    // Conférences & Lounge des Technologies (consultation)
+    Route::get('/conferences', [\App\Http\Controllers\Admin\SlotController::class, 'index'])->name('slots.index');
+    Route::get('/conferences/creneaux/{slot}/support', [\App\Http\Controllers\Admin\SlotController::class, 'downloadSupport'])->whereNumber('slot')->name('slots.support');
+    Route::get('/conferences/export/programme-{locale}.pdf', [\App\Http\Controllers\SlotExportController::class, 'pdf'])->whereIn('locale', ['fr', 'en'])->name('slots.export.pdf');
+    Route::get('/conferences/export/creneaux.csv', [\App\Http\Controllers\SlotExportController::class, 'csv'])->name('slots.export.csv');
+
 });
 
 
@@ -318,6 +324,21 @@ Route::patch(
 )->whereNumber('equipmentRequest')
   ->name('commercial.equipment-requests.reject');
 
+    // Conférences & Lounge des Technologies
+    Route::prefix('/commercial/conferences')->name('commercial.')->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\CommercialSlotController::class, 'index'])->name('slots.index');
+        Route::put('/creneaux/{slot}', [\App\Http\Controllers\CommercialSlotController::class, 'update'])->whereNumber('slot')->name('slots.update');
+        Route::get('/creneaux/{slot}/support', [\App\Http\Controllers\CommercialSlotController::class, 'downloadSupport'])->whereNumber('slot')->name('slots.support');
+        Route::post('/creneaux/{slot}/support', [\App\Http\Controllers\CommercialSlotController::class, 'uploadSupport'])->middleware('throttle:20,1')->whereNumber('slot')->name('slots.support.store');
+
+        Route::get('/demandes', [\App\Http\Controllers\CommercialSlotRequestController::class, 'index'])->name('slot-requests.index');
+        Route::patch('/demandes/{slotRequest}/accepter', [\App\Http\Controllers\CommercialSlotRequestController::class, 'accept'])->whereNumber('slotRequest')->name('slot-requests.accept');
+        Route::patch('/demandes/{slotRequest}/refuser', [\App\Http\Controllers\CommercialSlotRequestController::class, 'reject'])->whereNumber('slotRequest')->name('slot-requests.reject');
+
+        Route::get('/export/programme-{locale}.pdf', [\App\Http\Controllers\SlotExportController::class, 'pdf'])->whereIn('locale', ['fr', 'en'])->name('slots.export.pdf');
+        Route::get('/export/creneaux.csv', [\App\Http\Controllers\SlotExportController::class, 'csv'])->name('slots.export.csv');
+    });
+
 });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
@@ -403,6 +424,13 @@ Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     )->whereUuid('notification')
     ->name('exhibitor.notifications.open');
 
+    // Conférences & Lounge des Technologies
+    Route::get('/exposant/conferences', [\App\Http\Controllers\ExhibitorSlotController::class, 'index'])->name('exhibitor.slots.index');
+    // Ouverture directe / rechargement de l'URL du formulaire : retour à la page.
+    Route::get('/exposant/conferences/demandes', fn () => redirect()->route('exhibitor.slots.index'));
+    Route::post('/exposant/conferences/demandes',[\App\Http\Controllers\ExhibitorSlotController::class, 'store'])->middleware('throttle:10,1')->name('exhibitor.slots.request');
+    Route::post('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'uploadSupport'])->middleware('throttle:10,1')->whereNumber('slot')->name('exhibitor.slots.support.store');
+    Route::get('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'downloadSupport'])->whereNumber('slot')->name('exhibitor.slots.support.download');
 
 });
 
