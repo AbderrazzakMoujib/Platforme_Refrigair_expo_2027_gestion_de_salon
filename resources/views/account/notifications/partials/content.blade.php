@@ -217,18 +217,69 @@
             @forelse ($notifications as $notification)
 
                 @php
-                    $data = $notification->data ?? [];
+    $data = $notification->data ?? [];
 
-                    $unread = is_null($notification->read_at);
+    $unread = is_null($notification->read_at);
 
-                    $event = $data['event'] ?? null;
+    $event = $data['event'] ?? null;
 
-                    $iconClasses = match ($event) {
-                        'status_updated' => 'bg-emerald-100 text-emerald-700',
-                        'created' => 'bg-amber-100 text-amber-700',
-                        default => 'bg-blue-100 text-blue-700',
-                    };
-                @endphp
+    $ticketId = $data['ticket_id'] ?? null;
+
+    $ticket = null;
+
+    if (
+        ($data['type'] ?? null) === 'support'
+        && is_scalar($ticketId)
+        && ctype_digit((string) $ticketId)
+    ) {
+        $ticket = $notificationTickets->get((int) $ticketId);
+    }
+
+    $senderExhibitor = $ticket?->exhibitor;
+    $senderCommercial = $ticket?->commercial;
+
+    $fromExhibitor = in_array(
+        $event,
+        ['created', 'exhibitor_reply'],
+        true
+    );
+
+    $fromCommercial = in_array(
+        $event,
+        ['commercial_reply', 'status_updated'],
+        true
+    );
+
+    $avatarUrl = null;
+    $senderName = null;
+
+    if ($fromExhibitor && $senderExhibitor) {
+
+        $senderName = $senderExhibitor->company_name;
+
+        $avatarUrl = $senderExhibitor->logo
+            ? \Illuminate\Support\Facades\Storage::disk('public')
+                ->url($senderExhibitor->logo)
+            : null;
+
+    } elseif ($fromCommercial && $senderCommercial) {
+
+        $senderName = $senderCommercial->name;
+
+        $avatarUrl = $senderCommercial->profile_photo_url;
+
+    }
+
+    $initials = mb_strtoupper(
+        mb_substr(trim($senderName ?? ''), 0, 2)
+    ) ?: '?';
+
+    $iconClasses = match ($event) {
+        'status_updated' => 'bg-emerald-100 text-emerald-700',
+        'created' => 'bg-amber-100 text-amber-700',
+        default => 'bg-blue-100 text-blue-700',
+    };
+@endphp
 
                 <form method="POST"
                       action="{{ route($notificationsRoute . '.open', $notification->id) }}">
@@ -242,44 +293,53 @@
                                 'bg-white hover:bg-slate-50' => !$unread,
                             ])>
 
-                        <!-- NOTIFICATION ICON -->
-                        <span class="grid size-12 shrink-0 place-items-center rounded-xl {{ $iconClasses }}">
+                        <!-- NOTIFICATION SENDER AVATAR -->
 
-                            @if ($event === 'status_updated')
+<span
+    class="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white sm:size-14"
+    title="{{ $senderName ?? 'Notification' }}"
+>
 
-                                <svg class="size-6"
-                                     viewBox="0 0 24 24"
-                                     fill="none"
-                                     stroke="currentColor"
-                                     stroke-width="1.8"
-                                     stroke-linecap="round"
-                                     stroke-linejoin="round"
-                                     aria-hidden="true">
+    @if ($avatarUrl)
 
-                                    <circle cx="12" cy="12" r="9"/>
-                                    <path d="m8 12 3 3 5-6"/>
+        <img
+            src="{{ $avatarUrl }}"
+            alt="{{ $senderName }}"
+            loading="lazy"
+            @class([
+                'h-full w-full',
+                'object-contain p-1.5' => $fromExhibitor,
+                'object-cover' => !$fromExhibitor,
+            ])
+            onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');"
+        >
 
-                                </svg>
+        <span class="hidden text-lg font-extrabold text-blue-700">
+            {{ $initials }}
+        </span>
 
-                            @else
+    @elseif ($senderName)
 
-                                <svg class="size-6"
-                                     viewBox="0 0 24 24"
-                                     fill="none"
-                                     stroke="currentColor"
-                                     stroke-width="1.8"
-                                     stroke-linecap="round"
-                                     stroke-linejoin="round"
-                                     aria-hidden="true">
+        <span class="grid h-full w-full place-items-center bg-blue-50 text-lg font-extrabold text-blue-700">
 
-                                    <path d="M4 5h16v13H8l-4 3V5Z"/>
-                                    <path d="M8 10h8M8 14h5"/>
+            {{ $initials }}
 
-                                </svg>
+        </span>
 
-                            @endif
+    @else
 
-                        </span>
+        <span class="grid h-full w-full place-items-center {{ $iconClasses }}">
+
+            <x-admin.icon
+                name="bell"
+                class="size-6"
+            />
+
+        </span>
+
+    @endif
+
+</span>
 
                         <!-- CONTENT -->
                         <span class="min-w-0 flex-1">

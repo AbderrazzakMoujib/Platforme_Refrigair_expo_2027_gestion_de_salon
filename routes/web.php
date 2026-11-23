@@ -16,6 +16,8 @@ use App\Http\Controllers\Admin\BadgeController;
 use App\Http\Controllers\ExhibitorStandOptionsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
+use App\Http\Controllers\CommercialEquipmentRequestController;
+use App\Http\Controllers\CommercialEquipmentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
 
@@ -77,14 +79,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/demandes/{equipmentRequest}', [EquipmentRequestController::class, 'show'])
     ->whereNumber('equipmentRequest')
     ->name('demandes.show');
-
-    Route::patch('/demandes/{equipmentRequest}/approve', [EquipmentRequestController::class, 'approve'])
-    ->whereNumber('equipmentRequest')
-    ->name('demandes.approve');
-
-    Route::patch('/demandes/{equipmentRequest}/reject', [EquipmentRequestController::class, 'reject'])
-    ->whereNumber('equipmentRequest')
-    ->name('demandes.reject');
 
     Route::get('/statistiques', StatisticsController::class)
     ->name('statistiques.index');
@@ -218,6 +212,13 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::put('/commercial/exposants/{exhibitor}', [CommercialExhibitorController::class, 'update'])->whereNumber('exhibitor')->name('commercial.exhibitors.update');
     Route::post('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'createAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access');
     Route::patch('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'toggleAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access.toggle');
+
+    // Badges des exposants du commercial
+    Route::get('/commercial/badges', [App\Http\Controllers\CommercialBadgeController::class, 'index'])->name('commercial.badges.index');
+    Route::get('/commercial/badges/export', [App\Http\Controllers\CommercialBadgeController::class, 'export'])->name('commercial.badges.export');
+    Route::post('/commercial/badges/{badge}/print', [App\Http\Controllers\CommercialBadgeController::class, 'print'])->whereNumber('badge')->name('commercial.badges.print');
+    Route::post('/commercial/badges/exposants/{exhibitor}/print', [App\Http\Controllers\CommercialBadgeController::class, 'printExhibitor'])->whereNumber('exhibitor')->name('commercial.badges.print-exhibitor');
+    Route::patch('/commercial/badges/exposants/{exhibitor}/quota', [App\Http\Controllers\CommercialBadgeController::class, 'updateQuota'])->whereNumber('exhibitor')->name('commercial.badges.quota');
     
     Route::get(
     '/commercial/assistance',
@@ -254,7 +255,71 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
    )->whereUuid('notification')
   ->name('commercial.notifications.open');
 
+  Route::get(
+    '/commercial/demandes-equipements',
+    [CommercialEquipmentRequestController::class, 'index']
+  )->name('commercial.equipment-requests.index');
+
+  Route::get(
+    '/commercial/demandes-equipements/{equipmentRequest}',
+    [CommercialEquipmentRequestController::class, 'show']
+  )->whereNumber('equipmentRequest')
+    ->name('commercial.equipment-requests.show');
+
+    Route::get(
+    '/commercial/demandes-equipements/create',
+    [CommercialEquipmentRequestController::class, 'create']
+    )->name('commercial.equipment-requests.create');
+
+    Route::post(
+    '/commercial/demandes-equipements',
+    [CommercialEquipmentRequestController::class, 'store']
+    )->name('commercial.equipment-requests.store');
+
+    // Gestion des équipements du commercial
+
+Route::get('/commercial/equipements',
+    [CommercialEquipmentController::class, 'index']
+)->name('commercial.equipements.index');
+
+Route::get('/commercial/equipements/create',
+    [CommercialEquipmentController::class, 'create']
+)->name('commercial.equipements.create');
+
+Route::post('/commercial/equipements',
+    [CommercialEquipmentController::class, 'store']
+)->name('commercial.equipements.store');
+
+Route::get('/commercial/equipements/{equipment}/edit',
+    [CommercialEquipmentController::class, 'edit']
+)->whereNumber('equipment')
+ ->name('commercial.equipements.edit');
+
+Route::put('/commercial/equipements/{equipment}',
+    [CommercialEquipmentController::class, 'update']
+)->whereNumber('equipment')
+ ->name('commercial.equipements.update');
+
+Route::patch('/commercial/equipements/{equipment}/toggle',
+    [CommercialEquipmentController::class, 'toggle']
+)->whereNumber('equipment')
+ ->name('commercial.equipements.toggle');
+
+
+ Route::patch(
+    '/commercial/demandes-equipements/{equipmentRequest}/approve',
+    [\App\Http\Controllers\CommercialEquipmentRequestController::class, 'approve']
+)->whereNumber('equipmentRequest')
+  ->name('commercial.equipment-requests.approve');
+
+Route::patch(
+    '/commercial/demandes-equipements/{equipmentRequest}/reject',
+    [\App\Http\Controllers\CommercialEquipmentRequestController::class, 'reject']
+)->whereNumber('equipmentRequest')
+  ->name('commercial.equipment-requests.reject');
+
 });
+
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');
     Route::resource('/exposant/badges', ExhibitorBadgeController::class)->except(['show'])->names('exhibitor.badges');

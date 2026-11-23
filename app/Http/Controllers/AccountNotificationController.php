@@ -33,33 +33,77 @@ class AccountNotificationController extends Controller
     }
 
     public function index(Request $request): View
-    {
-        $this->allowed($request);
+{
+    $this->allowed($request);
 
-        $user = $request->user();
+    $user = $request->user();
 
-        $isExhibitor = $user->role === UserRole::Exposant;
+    $isExhibitor = $user->role === UserRole::Exposant;
 
-        $notifications = $user
-            ->notifications()
-            ->latest()
-            ->paginate(12);
+    $exhibitor = $isExhibitor
+        ? $user->exhibitorProfile()->firstOrFail()
+        : null;
 
-        $unreadCount = $user
-            ->unreadNotifications()
-            ->count();
+    $notifications = $user
+        ->notifications()
+        ->latest()
+        ->paginate(12);
 
-        return view('account.notifications.index', [
-            'user' => $user,
-            'notifications' => $notifications,
-            'unreadCount' => $unreadCount,
-            'isExhibitor' => $isExhibitor,
+    $unreadCount = $user
+        ->unreadNotifications()
+        ->count();
 
-            'exhibitor' => $isExhibitor
-                ? $user->exhibitorProfile()->firstOrFail()
-                : null,
-        ]);
+    // Récupérer les demandes liées aux notifications.
+
+    $ticketIds = $notifications->getCollection()
+        ->filter(fn ($notification) =>
+            ($notification->data['type'] ?? null) === 'support'
+        )
+        ->map(fn ($notification) =>
+            $notification->data['ticket_id'] ?? null
+        )
+        ->filter(fn ($id) =>
+            is_scalar($id) && ctype_digit((string) $id)
+        )
+        ->unique()
+        ->values();
+
+    $ticketsQuery = SupportTicket::query()
+        ->with(['exhibitor', 'commercial'])
+        ->whereIn('id', $ticketIds);
+
+    // Sécurité : vérifier les droits d'accès.
+
+    if ($isExhibitor) {
+
+        $ticketsQuery->where(
+            'exhibitor_id',
+            $exhibitor->id
+        );
+
+    } else {
+
+        $ticketsQuery
+            ->where('commercial_id', $user->id)
+            ->whereHas('exhibitor', function ($query) use ($user) {
+                $query->where('commercial_id', $user->id);
+            });
+
     }
+
+    $notificationTickets = $ticketsQuery
+        ->get()
+        ->keyBy('id');
+
+    return view('account.notifications.index', [
+        'user' => $user,
+        'notifications' => $notifications,
+        'unreadCount' => $unreadCount,
+        'isExhibitor' => $isExhibitor,
+        'exhibitor' => $exhibitor,
+        'notificationTickets' => $notificationTickets,
+    ]);
+}
 
     public function open(
         Request $request,
@@ -82,6 +126,51 @@ class AccountNotificationController extends Controller
         $fallback = route(
             $this->routePrefix($request) . '.index'
         );
+
+
+        // Ouvrir une notification de demande d'équipements.
+        if (($data['type'] ?? null) === 'equipment_request') {
+
+            $orderId = $data['equipment_request_id'] ?? null;
+
+            if (
+                !is_scalar($orderId)
+                || !ctype_digit((string) $orderId)
+                || (int) $orderId < 1
+            ) {
+                return redirect()->to($fallback);
+            }
+
+            $orderId = (int) $orderId;
+
+            // Le commercial ne peut accéder qu'aux
+            // demandes des exposants dont il est responsable.
+            if ($user->role === UserRole::Commercial) {
+
+                $exists = \App\Models\EquipmentRequest::query()
+                    ->whereKey($orderId)
+                    ->whereHas(
+                        'exhibitor',
+                        fn ($query) => $query->where(
+                            'commercial_id',
+                            $user->id
+                        )
+                    )
+                    ->exists();
+
+                if (!$exists) {
+                    return redirect()->to($fallback);
+                }
+
+                return redirect()->route(
+                    'commercial.equipment-requests.show',
+                    $orderId
+                );
+            }
+
+            return redirect()->to($fallback);
+        }
+
 
         if (
             ($data['type'] ?? null) !== 'support'

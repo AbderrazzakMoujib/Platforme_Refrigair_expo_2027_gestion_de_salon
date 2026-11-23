@@ -185,6 +185,7 @@
                 @foreach ([
                     ['label' => 'Gérer mes exposants', 'icon' => 'users', 'href' => route('commercial.exhibitors.index'), 'count' => null],
                     ['label' => 'Ajouter un exposant', 'icon' => 'user-plus', 'href' => route('commercial.exhibitors.create'), 'count' => null],
+                    ['label' => 'Badges de mes exposants', 'icon' => 'badge', 'href' => route('commercial.badges.index'), 'count' => null],
                     ['label' => 'Assistance', 'icon' => 'inbox', 'href' => route('commercial.support.index'), 'count' => $activeTickets],
                     ['label' => 'Notifications', 'icon' => 'bell', 'href' => route('commercial.notifications.index'), 'count' => $unreadNotificationsCount],
                 ] as $action)

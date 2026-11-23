@@ -316,92 +316,128 @@
                                 );
                             @endphp
 
-                            <article
-                                class="equipment-card overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-blue-200 hover:shadow-md"
-                                data-id="{{ $item->id }}"
-                                data-name="{{ $item->name }}"
-                                data-category="{{ $item->category }}"
-                                data-description="{{ $item->description }}"
-                                data-price="{{ $item->price }}"
-                                data-max="{{ $maxQty }}"
-                                data-image="{{ $imageUrl ?? '' }}">
+                            
+<article
+    class="equipment-card flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+    data-id="{{ $item->id }}"
+    data-name="{{ $item->name }}"
+    data-category="{{ $item->category }}"
+    data-description="{{ $item->description }}"
+    data-price="{{ $item->price }}"
+    data-max="{{ $maxQty }}"
+    data-image="{{ $imageUrl ?? '' }}"
+>
 
-                                <!-- IMAGE -->
-                                <div class="grid h-40 place-items-center bg-[#F5F7FB] p-4">
+    {{-- PRODUCT IMAGE --}}
+    <div
+        class="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-[#F5F7FB]"
+        style="height: 180px;"
+    >
 
-                                    @if ($imageUrl)
-                                        <img src="{{ $imageUrl }}"
-                                             alt="{{ $item->name }}"
-                                             loading="lazy"
-                                             class="h-full w-full object-contain">
-                                    @else
-                                        <span class="grid size-16 place-items-center rounded-2xl bg-blue-100 text-blue-600">
-                                            <svg class="size-9"
-                                                 viewBox="0 0 24 24"
-                                                 fill="none"
-                                                 stroke="currentColor"
-                                                 stroke-width="1.7"
-                                                 aria-hidden="true">
-                                                <path d="m12 2 9 5-9 5-9-5 9-5ZM3 7v10l9 5 9-5V7M12 12v10"/>
-                                            </svg>
-                                        </span>
-                                    @endif
+        @if ($imageUrl)
+            <img
+                src="{{ $imageUrl }}"
+                alt="{{ $item->name }}"
+                loading="lazy"
+                class="absolute inset-0 block h-full w-full object-contain p-3"
+                style="width: 100%; height: 100%; object-fit: contain;"
+            >
+        @else
+            <div class="absolute inset-0 flex items-center justify-center">
 
-                                </div>
+                <div class="flex size-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
 
-                                <div class="space-y-3 p-4">
+                    <svg
+                        class="size-9"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        aria-hidden="true"
+                    >
+                        <path d="m12 2 9 5-9 5-9-5 9-5Z"/>
+                        <path d="M3 7v10l9 5 9-5V7"/>
+                        <path d="M12 12v10"/>
+                    </svg>
 
-                                    <p class="text-xs font-bold uppercase tracking-wide text-blue-600">
-                                        {{ $item->category ?: 'Autres' }}
-                                    </p>
+                </div>
 
-                                    <h3 class="min-h-11 text-base font-extrabold leading-6 text-[#0F2347]">
-                                        {{ $item->name }}
-                                    </h3>
+            </div>
+        @endif
 
-                                    <p class="line-clamp-2 min-h-10 text-xs leading-5 text-slate-500">
-                                        {{ $item->description ?: 'Équipement supplémentaire pour votre stand.' }}
-                                    </p>
+    </div>
 
-                                    <div class="flex flex-wrap items-end justify-between gap-2">
+    {{-- PRODUCT INFORMATION --}}
+    <div class="flex min-w-0 flex-1 flex-col p-4">
 
-                                        <p class="text-lg font-extrabold text-blue-700">
-                                            {{ $formatPrice($item->price) }}
-                                        </p>
+        {{-- CATEGORY --}}
+        <div class="mb-3">
+            <span class="inline-flex max-w-full rounded-lg bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">
+                {{ $item->category ?: 'Autres' }}
+            </span>
+        </div>
 
-                                        <span @class([
-                                            'rounded-full px-2.5 py-1 text-[11px] font-semibold',
-                                            'bg-emerald-50 text-emerald-700' => $maxQty > 0,
-                                            'bg-red-50 text-red-700' => $maxQty === 0,
-                                        ])>
-                                            {{ $maxQty > 0
-                                                ? 'Disponible : ' . $item->quantity_available
-                                                : 'Indisponible' }}
-                                        </span>
+        {{-- PRODUCT NAME --}}
+        <h3 class="line-clamp-2 min-h-[48px] break-words text-base font-extrabold leading-6 text-[#0F2347]">
+            {{ $item->name }}
+        </h3>
 
-                                    </div>
+        {{-- DESCRIPTION --}}
+        <p class="mt-2 line-clamp-2 min-h-[40px] break-words text-xs leading-5 text-slate-500">
+            {{ $item->description ?: 'Équipement supplémentaire pour votre stand.' }}
+        </p>
 
-                                    <!-- REAL FORM QUANTITY -->
-                                    <input
-                                        type="hidden"
-                                        name="items[{{ $item->id }}]"
-                                        value="{{ $oldQty }}"
-                                        data-equipment-quantity>
+        {{-- PRICE / STOCK / BUTTON --}}
+        <div class="mt-auto pt-4">
 
-                                    <!-- ADD BUTTON -->
-                                    <button type="button"
-                                            data-add-item
-                                            @disabled($maxQty === 0)
-                                            class="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 
-                                        <span class="text-lg">+</span>
-                                        Ajouter
+                <p class="text-lg font-extrabold text-[#2563EB]">
+                    {{ $formatPrice($item->price) }}
+                </p>
 
-                                    </button>
+                <span @class([
+                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                    'bg-emerald-50 text-emerald-700' => $maxQty > 0,
+                    'bg-red-50 text-red-700' => $maxQty === 0,
+                ])>
+                    <span @class([
+                        'size-1.5 rounded-full',
+                        'bg-emerald-500' => $maxQty > 0,
+                        'bg-red-500' => $maxQty === 0,
+                    ])></span>
 
-                                </div>
+                    {{ $maxQty > 0
+                        ? 'Disponible : ' . $item->quantity_available
+                        : 'Indisponible' }}
+                </span>
 
-                            </article>
+            </div>
+
+            {{-- QUANTITY: KEEP FOR EXISTING CART JS --}}
+            <input
+                type="hidden"
+                name="items[{{ $item->id }}]"
+                value="{{ $oldQty }}"
+                data-equipment-quantity
+            >
+
+            {{-- ADD TO CART --}}
+            <button
+                type="button"
+                data-add-item
+                @disabled($maxQty === 0)
+                class="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 py-3 text-sm font-bold text-[#2563EB] transition hover:border-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                + Ajouter
+            </button>
+
+        </div>
+
+    </div>
+
+</article>
+
 
                         @empty
 
@@ -887,14 +923,50 @@ document.addEventListener('DOMContentLoaded', () => {
         info.append(title, unitPrice);
 
         // DELETE
-        const remove = makeButton('×', () => setQuantity(item, 0));
+        
+        // REMOVE PRODUCT FROM CART
+        const remove = document.createElement('button');
+
+        remove.type = 'button';
+
         remove.className =
-            'grid size-8 shrink-0 place-items-center rounded-lg ' +
-            'border border-red-200 text-lg text-red-600 hover:bg-red-50';
+            'grid size-9 shrink-0 place-items-center rounded-xl ' +
+            'border border-red-200 bg-red-50 text-red-600 ' +
+            'transition hover:border-red-300 hover:bg-red-100 ' +
+            'focus:outline-none focus:ring-2 focus:ring-red-400';
+
+        remove.innerHTML = `
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M3 6h18"/>
+                <path d="M8 6V4h8v2"/>
+                <path d="M5 6l1 15h12l1-15"/>
+                <path d="M10 10v7"/>
+                <path d="M14 10v7"/>
+            </svg>
+        `;
+
         remove.setAttribute(
             'aria-label',
-            `Supprimer ${item.name} de la sélection`
+            `Supprimer ${item.name} du panier`
         );
+
+        remove.title = 'Retirer du panier';
+
+        remove.addEventListener('click', () => {
+            setQuantity(item, 0);
+        });
+
 
         top.append(visual, info, remove);
 

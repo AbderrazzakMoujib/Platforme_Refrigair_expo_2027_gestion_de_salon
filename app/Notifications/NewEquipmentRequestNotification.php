@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\UserRole;
 use App\Models\EquipmentRequest;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
@@ -21,17 +22,32 @@ class NewEquipmentRequestNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        $isCommercial = $notifiable->role
+            === UserRole::Commercial;
+
+        $route = $isCommercial
+            ? 'commercial.equipment-requests.show'
+            : 'admin.demandes.show';
+
         return [
             'type' => 'equipment_request',
+
             'title' => 'Nouvelle demande d’équipements',
-            'message' => 'Une demande a été enregistrée par '
-                . ($this->equipmentRequest->exhibitor?->company_name ?? 'un exposant')
+
+            'message' => 'Nouvelle demande envoyée par '
+                . (
+                    $this->equipmentRequest
+                        ->exhibitor?->company_name
+                    ?? 'un exposant'
+                )
                 . '.',
+
+            'equipment_request_id' => $this->equipmentRequest->id,
+
             'url' => route(
-                'admin.demandes.show',
+                $route,
                 $this->equipmentRequest
             ),
-            'equipment_request_id' => $this->equipmentRequest->id,
         ];
     }
 }

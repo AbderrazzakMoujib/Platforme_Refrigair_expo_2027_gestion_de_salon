@@ -18,16 +18,25 @@
 
         $commercial = $ticket->commercial;
 
-        $messages = $ticket->messages
-            ->sortBy('id');
+        $messages = $ticket->messages->sortBy('id');
 
         $lastMessage = $messages->last();
+
+        $exhibitorLogo = $exhibitor->logo
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($exhibitor->logo)
+            : null;
+
+        $exhibitorInitials = mb_strtoupper(
+            mb_substr(trim($exhibitor->company_name ?? ''), 0, 2)
+        ) ?: 'EX';
     @endphp
 
-    <div class="space-y-6">
+    <div class="min-w-0 space-y-6">
 
-        <!-- BREADCRUMB -->
-        <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        {{-- BREADCRUMB --}}
+
+        <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500"
+             aria-label="Fil d'Ariane">
 
             <a href="{{ route('exposant.index') }}"
                class="transition hover:text-blue-600">
@@ -49,7 +58,9 @@
 
         </nav>
 
-        <!-- PAGE HEADER -->
+
+        {{-- PAGE HEADER --}}
+
         <header class="flex flex-wrap items-center justify-between gap-4">
 
             <div class="flex items-center gap-4">
@@ -77,15 +88,11 @@
                 <div>
 
                     <h1 class="text-2xl font-extrabold tracking-tight text-[#0F2347] sm:text-3xl">
-
                         Demande #{{ $ticket->id }}
-
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-
                         Échangez avec votre commercial concernant votre demande.
-
                     </p>
 
                 </div>
@@ -114,7 +121,9 @@
 
         </header>
 
-        <!-- SUCCESS MESSAGE -->
+
+        {{-- SUCCESS MESSAGE --}}
+
         @if (session('status'))
 
             <div role="status"
@@ -126,40 +135,92 @@
 
         @endif
 
-        <!-- ERRORS -->
+
+        {{-- VALIDATION ERRORS --}}
+
         @if ($errors->any())
 
             <div role="alert"
                  class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
 
                 @foreach ($errors->all() as $error)
+
                     <p>{{ $error }}</p>
+
                 @endforeach
 
             </div>
 
         @endif
 
-        <!-- MAIN GRID -->
-        <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
 
-            <!-- CONVERSATION -->
+        {{-- MAIN GRID --}}
+
+        <div class="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+
+
+            {{-- CONVERSATION --}}
+
             <section class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                <!-- CONVERSATION HEADER -->
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-5 sm:px-6">
 
-                    <div class="min-w-0">
+                {{-- CONVERSATION HEADER --}}
 
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                            Objet de la demande
-                        </p>
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:px-6">
 
-                        <h2 class="break-words text-lg font-extrabold text-[#0F2347]">
+                    <div class="flex min-w-0 items-center gap-3">
 
-                            {{ $ticket->subject }}
+                        {{-- COMMERCIAL PHOTO --}}
 
-                        </h2>
+                        <div class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full border border-blue-100 bg-blue-50 font-bold text-blue-700">
+
+                            @if ($commercial?->profile_photo_url)
+
+                                <img
+                                    src="{{ $commercial->profile_photo_url }}"
+                                    alt="{{ $commercial->name }}"
+                                    class="h-full w-full object-cover"
+                                    data-support-avatar
+                                >
+
+                                <span class="hidden"
+                                      data-avatar-fallback>
+
+                                    {{ $commercial->initials }}
+
+                                </span>
+
+                            @else
+
+                                {{ $commercial?->initials ?? 'C' }}
+
+                            @endif
+
+                        </div>
+
+                        <div class="min-w-0">
+
+                            <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                Objet de la demande
+                            </p>
+
+                            <h2 class="break-words text-lg font-extrabold text-[#0F2347]">
+
+                                {{ $ticket->subject }}
+
+                            </h2>
+
+                            @if ($commercial)
+
+                                <p class="mt-1 text-xs text-slate-500">
+
+                                    {{ $commercial->name }} — Commercial
+
+                                </p>
+
+                            @endif
+
+                        </div>
 
                     </div>
 
@@ -173,91 +234,168 @@
 
                 </div>
 
-                <!-- MESSAGES -->
-                <div id="support-conversation"
-                     role="log"
-                     aria-label="Conversation"
-                     class="min-h-[380px] max-h-[570px] space-y-6 overflow-y-auto bg-slate-50/40 px-4 py-6 sm:px-6">
+
+                {{-- CONVERSATION MESSAGES --}}
+
+                <div
+                    id="support-conversation"
+                    role="log"
+                    aria-label="Conversation"
+                    class="min-h-[380px] max-h-[570px] space-y-6 overflow-y-auto bg-slate-50/40 px-4 py-6 sm:px-6"
+                >
 
                     @forelse ($messages as $message)
 
                         @php
-                            $isMine = (int) $message->user_id
-                                === (int) $user->id;
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Identification de l'expéditeur réel
+                            |--------------------------------------------------------------------------
+                            */
 
                             $sender = $message->user;
 
-                            $initials = $sender?->initials ?? '?';
+                            // Position du message uniquement.
+                            $isMine = (int) $message->user_id
+                                === (int) $user->id;
+
+                            // Vérifier si l'expéditeur est l'exposant.
+                            $isExhibitor = $exhibitor->user_id !== null
+                                && (int) $message->user_id
+                                    === (int) $exhibitor->user_id;
+
+                            // Récupérer l'image de l'expéditeur réel.
+                            $avatarUrl = $isExhibitor
+                                ? $exhibitorLogo
+                                : $sender?->profile_photo_url;
+
+                            // Nom réel de l'expéditeur.
+                            $avatarName = $isExhibitor
+                                ? $exhibitor->company_name
+                                : ($sender?->name ?? 'Utilisateur');
+
+                            // Initiales si aucune image.
+                            $avatarInitials = $isExhibitor
+                                ? $exhibitorInitials
+                                : ($sender?->initials ?? '?');
+
+                            $senderRole = $isExhibitor
+                                ? 'Exposant'
+                                : 'Commercial';
+
                         @endphp
+
+
+                        {{-- MESSAGE ROW --}}
 
                         <article @class([
                             'flex items-start gap-3',
                             'flex-row-reverse' => $isMine,
                         ])>
 
-                            <!-- AVATAR -->
+
+                            {{-- SENDER AVATAR --}}
+
                             <div @class([
-                                'grid size-10 shrink-0 place-items-center overflow-hidden rounded-full text-xs font-bold sm:size-11',
-                                'bg-[#2563EB] text-white' => $isMine,
-                                'bg-blue-100 text-blue-700' => !$isMine,
+                                'grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border font-bold shadow-sm sm:size-12',
+                                'border-blue-100 bg-white text-blue-700' => $isExhibitor,
+                                'border-slate-200 bg-blue-100 text-blue-700' => ! $isExhibitor,
                             ])>
 
-                                @if ($sender?->profile_photo_url)
+                                @if ($avatarUrl)
 
                                     <img
-                                        src="{{ $sender->profile_photo_url }}"
-                                        alt="{{ $sender->name }}"
-                                        class="h-full w-full object-cover"
+                                        src="{{ $avatarUrl }}"
+                                        alt="{{ $avatarName }}"
+                                        title="{{ $avatarName }}"
+                                        data-support-avatar
+                                        @class([
+                                            'h-full w-full',
+                                            'object-contain p-1' => $isExhibitor,
+                                            'object-cover' => ! $isExhibitor,
+                                        ])
                                     >
+
+                                    {{-- FALLBACK IMAGE --}}
+
+                                    <span
+                                        class="hidden text-sm font-bold text-blue-700"
+                                        data-avatar-fallback
+                                    >
+
+                                        {{ $avatarInitials }}
+
+                                    </span>
 
                                 @else
 
-                                    {{ $initials }}
+                                    <span class="text-sm font-bold text-blue-700"
+                                          title="{{ $avatarName }}">
+
+                                        {{ $avatarInitials }}
+
+                                    </span>
 
                                 @endif
 
                             </div>
 
-                            <!-- MESSAGE -->
+
+                            {{-- MESSAGE CONTENT --}}
+
                             <div @class([
-                                'min-w-0 max-w-[82%] sm:max-w-[78%]',
+                                'flex min-w-0 max-w-[82%] flex-col sm:max-w-[78%]',
                                 'items-end' => $isMine,
+                                'items-start' => ! $isMine,
                             ])>
 
-                                <!-- SENDER -->
+
+                                {{-- SENDER NAME --}}
+
                                 <div @class([
                                     'mb-2 flex flex-wrap items-center gap-2',
                                     'justify-end' => $isMine,
                                 ])>
 
-                                    <span class="text-xs font-bold text-[#0F2347]">
+                                    <span class="break-words text-xs font-bold text-[#0F2347]">
 
-                                        {{ $isMine
-                                            ? 'Vous'
-                                            : ($sender?->name ?? 'Commercial') }}
+                                        {{ $avatarName }}
+
+                                        @if ($isMine)
+
+                                            <span class="font-normal text-slate-400">
+                                                (Vous)
+                                            </span>
+
+                                        @endif
 
                                     </span>
 
-                                    @unless ($isMine)
+                                    <span @class([
+                                        'rounded-md px-2 py-0.5 text-[10px] font-semibold',
+                                        'bg-violet-50 text-violet-600' => $isExhibitor,
+                                        'bg-blue-50 text-blue-600' => ! $isExhibitor,
+                                    ])>
 
-                                        <span class="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
+                                        {{ $senderRole }}
 
-                                            Commercial
-
-                                        </span>
-
-                                    @endunless
+                                    </span>
 
                                 </div>
 
-                                <!-- MESSAGE BUBBLE -->
+
+                                {{-- MESSAGE BUBBLE --}}
+
                                 <div @class([
-                                    'break-words whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-7 sm:px-5',
-                                    'rounded-tr-sm bg-[#2563EB] text-white' => $isMine,
-                                    'rounded-tl-sm border border-slate-200 bg-white text-slate-700 shadow-sm' => !$isMine,
+                                    'max-w-full break-words whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-7 sm:px-5',
+                                    'rounded-tr-sm bg-[#2563EB] text-white shadow-sm' => $isMine,
+                                    'rounded-tl-sm border border-slate-200 bg-white text-slate-700 shadow-sm' => ! $isMine,
                                 ])>{{ $message->message }}</div>
 
-                                <!-- MESSAGE TIME -->
+
+                                {{-- MESSAGE DATE --}}
+
                                 <p @class([
                                     'mt-2 text-[11px] text-slate-400',
                                     'text-right' => $isMine,
@@ -273,11 +411,31 @@
 
                     @empty
 
+
+                        {{-- EMPTY CONVERSATION --}}
+
                         <div class="grid min-h-[300px] place-items-center text-center">
 
                             <div>
 
-                                <p class="font-bold text-[#0F2347]">
+                                <span class="mx-auto grid size-16 place-items-center rounded-full bg-blue-50 text-blue-600">
+
+                                    <svg class="size-8"
+                                         viewBox="0 0 24 24"
+                                         fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="1.8"
+                                         stroke-linecap="round"
+                                         stroke-linejoin="round"
+                                         aria-hidden="true">
+
+                                        <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/>
+
+                                    </svg>
+
+                                </span>
+
+                                <p class="mt-4 font-bold text-[#0F2347]">
                                     Aucun message
                                 </p>
 
@@ -293,7 +451,9 @@
 
                 </div>
 
-                <!-- REPLY AREA -->
+
+                {{-- REPLY AREA --}}
+
                 @if ($ticket->status !== 'resolved')
 
                     <form
@@ -304,6 +464,54 @@
                     >
 
                         @csrf
+
+
+                        {{-- CONNECTED EXHIBITOR --}}
+
+                        <div class="mb-4 flex items-center gap-3">
+
+                            <div class="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-blue-100 bg-white font-bold text-blue-600">
+
+                                @if ($exhibitorLogo)
+
+                                    <img
+                                        src="{{ $exhibitorLogo }}"
+                                        alt="Logo {{ $exhibitor->company_name }}"
+                                        class="h-full w-full object-contain p-1"
+                                        data-support-avatar
+                                    >
+
+                                    <span class="hidden"
+                                          data-avatar-fallback>
+
+                                        {{ $exhibitorInitials }}
+
+                                    </span>
+
+                                @else
+
+                                    {{ $exhibitorInitials }}
+
+                                @endif
+
+                            </div>
+
+                            <div class="min-w-0">
+
+                                <p class="break-words text-sm font-bold text-[#0F2347]">
+
+                                    {{ $exhibitor->company_name }}
+
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-400">
+                                    Vous — Exposant
+                                </p>
+
+                            </div>
+
+                        </div>
+
 
                         <label for="support-message"
                                class="mb-2 block text-sm font-bold text-[#0F2347]">
@@ -332,11 +540,15 @@
 
                         @enderror
 
+
+                        {{-- SEND BUTTON --}}
+
                         <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
 
                             <p class="text-xs text-slate-400">
 
                                 <span id="support-character-count">0</span>
+
                                 / 5000 caractères
 
                             </p>
@@ -361,7 +573,9 @@
 
                                 </svg>
 
-                                <span>Envoyer</span>
+                                <span id="support-send-label">
+                                    Envoyer
+                                </span>
 
                             </button>
 
@@ -371,7 +585,9 @@
 
                 @else
 
-                    <!-- CLOSED TICKET -->
+
+                    {{-- RESOLVED TICKET --}}
+
                     <div class="border-t border-emerald-100 bg-emerald-50 p-6">
 
                         <div class="flex items-start gap-3">
@@ -397,9 +613,7 @@
                             <div>
 
                                 <h3 class="font-bold text-emerald-800">
-
                                     Cette demande est résolue.
-
                                 </h3>
 
                                 <p class="mt-2 text-sm leading-6 text-emerald-700">
@@ -426,10 +640,14 @@
 
             </section>
 
-            <!-- RIGHT SIDEBAR -->
+
+            {{-- RIGHT SIDEBAR --}}
+
             <aside class="min-w-0 space-y-5">
 
-                <!-- TICKET DETAILS -->
+
+                {{-- TICKET DETAILS --}}
+
                 <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
                     <div class="flex items-center gap-3">
@@ -452,9 +670,7 @@
                         </span>
 
                         <h2 class="font-extrabold text-[#0F2347]">
-
                             Détails de la demande
-
                         </h2>
 
                     </div>
@@ -468,9 +684,7 @@
                             </dt>
 
                             <dd class="font-bold text-[#0F2347]">
-
                                 #{{ $ticket->id }}
-
                             </dd>
 
                         </div>
@@ -497,8 +711,7 @@
 
                             <dd class="font-semibold text-[#0F2347]">
 
-                                {{ $categories[$ticket->category]
-                                    ?? 'Autre' }}
+                                {{ $categories[$ticket->category] ?? 'Autre' }}
 
                             </dd>
 
@@ -532,8 +745,7 @@
 
                             <dd class="text-right font-semibold text-[#0F2347]">
 
-                                {{ $lastMessage?->created_at?->format('d/m/Y')
-                                    ?? '—' }}
+                                {{ $lastMessage?->created_at?->format('d/m/Y') ?? '—' }}
 
                                 <span class="mt-1 block text-xs font-normal text-slate-400">
 
@@ -551,11 +763,7 @@
                                 Messages
                             </dt>
 
-                            <dd class="font-bold text-[#0F2347]">
-
-                                {{ $messages->count() }}
-
-                            </dd>
+                            <dd class="font-bold text-[#0F2347]">{{ $messages->count() }}</dd>
 
                         </div>
 
@@ -563,20 +771,20 @@
 
                 </section>
 
-                <!-- COMMERCIAL CARD -->
+
+                {{-- COMMERCIAL CARD --}}
+
                 <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
                     <h2 class="font-extrabold text-[#0F2347]">
-
                         Votre commercial
-
                     </h2>
 
                     @if ($commercial)
 
                         <div class="mt-5 flex items-center gap-3">
 
-                            <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 font-bold text-blue-700">
+                            <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full border border-blue-100 bg-blue-50 font-bold text-blue-700">
 
                                 @if ($commercial->profile_photo_url)
 
@@ -584,7 +792,15 @@
                                         src="{{ $commercial->profile_photo_url }}"
                                         alt="{{ $commercial->name }}"
                                         class="h-full w-full object-cover"
+                                        data-support-avatar
                                     >
+
+                                    <span class="hidden"
+                                          data-avatar-fallback>
+
+                                        {{ $commercial->initials }}
+
+                                    </span>
 
                                 @else
 
@@ -603,9 +819,7 @@
                                 </p>
 
                                 <p class="mt-1 text-xs text-slate-500">
-
                                     Commercial référent
-
                                 </p>
 
                             </div>
@@ -670,16 +884,81 @@
                     @else
 
                         <p class="mt-4 text-sm text-slate-500">
-
                             Aucun commercial attribué.
-
                         </p>
 
                     @endif
 
                 </section>
 
-                <!-- INFORMATION CARD -->
+
+                {{-- EXHIBITOR CARD --}}
+
+                <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                    <h2 class="font-extrabold text-[#0F2347]">
+                        Votre entreprise
+                    </h2>
+
+                    <div class="mt-5 flex items-center gap-3">
+
+                        <div class="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white font-bold text-blue-600">
+
+                            @if ($exhibitorLogo)
+
+                                <img
+                                    src="{{ $exhibitorLogo }}"
+                                    alt="Logo {{ $exhibitor->company_name }}"
+                                    class="h-full w-full object-contain p-2"
+                                    data-support-avatar
+                                >
+
+                                <span class="hidden"
+                                      data-avatar-fallback>
+
+                                    {{ $exhibitorInitials }}
+
+                                </span>
+
+                            @else
+
+                                <span class="text-xl">
+
+                                    {{ $exhibitorInitials }}
+
+                                </span>
+
+                            @endif
+
+                        </div>
+
+                        <div class="min-w-0">
+
+                            <p class="break-words text-sm font-bold text-[#0F2347]">
+
+                                {{ $exhibitor->company_name }}
+
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Entreprise exposante
+                            </p>
+
+                            <span class="mt-2 inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+
+                                Stand {{ $exhibitor->stand_number ?: '—' }}
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {{-- INFORMATION CARD --}}
+
                 <section class="rounded-2xl border border-blue-100 bg-blue-50 p-5">
 
                     <div class="flex items-start gap-3">
@@ -700,9 +979,7 @@
                         <div>
 
                             <h3 class="font-bold text-[#0F2347]">
-
                                 Bon à savoir
-
                             </h3>
 
                             <p class="mt-2 text-xs leading-6 text-slate-600">
@@ -724,9 +1001,52 @@
 
     </div>
 
-    <!-- CONVERSATION SCRIPT -->
+
+    {{-- CONVERSATION JAVASCRIPT --}}
+
     <script>
         (() => {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Gestion des images indisponibles
+            |--------------------------------------------------------------------------
+            */
+
+            document.querySelectorAll('[data-support-avatar]')
+                .forEach(image => {
+
+                    const showFallback = () => {
+
+                        image.classList.add('hidden');
+
+                        const fallback = image.parentElement
+                            .querySelector('[data-avatar-fallback]');
+
+                        if (fallback) {
+                            fallback.classList.remove('hidden');
+                        }
+
+                    };
+
+                    image.addEventListener('error', showFallback);
+
+                    if (
+                        image.complete &&
+                        image.naturalWidth === 0
+                    ) {
+                        showFallback();
+                    }
+
+                });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Conversation elements
+            |--------------------------------------------------------------------------
+            */
+
             const conversation = document.getElementById(
                 'support-conversation'
             );
@@ -743,25 +1063,82 @@
                 'support-send-button'
             );
 
+            const label = document.getElementById(
+                'support-send-label'
+            );
+
             const form = document.getElementById(
                 'support-reply-form'
             );
 
-            // Scroll automatique vers le dernier message.
-            if (conversation) {
-                conversation.scrollTop = conversation.scrollHeight;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Scroll automatique
+            |--------------------------------------------------------------------------
+            */
+
+            function scrollToBottom() {
+
+                if (conversation) {
+
+                    conversation.scrollTop =
+                        conversation.scrollHeight;
+
+                }
+
             }
 
-            if (!textarea || !counter || !button || !form) {
+            scrollToBottom();
+
+            window.addEventListener(
+                'load',
+                scrollToBottom,
+                { once: true }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Vérification du formulaire
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !textarea ||
+                !counter ||
+                !button ||
+                !form ||
+                !label
+            ) {
                 return;
             }
 
+            let isSending = false;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Compteur de caractères
+            |--------------------------------------------------------------------------
+            */
+
             function updateComposer() {
-                counter.textContent = textarea.value.length;
+
+                const length = textarea.value.length;
+
+                counter.textContent = length;
+
+                counter.classList.toggle(
+                    'text-red-600',
+                    length >= 5000
+                );
 
                 button.disabled =
-                    textarea.value.trim().length === 0
-                    || textarea.value.length > 5000;
+                    isSending ||
+                    textarea.value.trim().length === 0 ||
+                    length > 5000;
+
             }
 
             textarea.addEventListener(
@@ -769,19 +1146,62 @@
                 updateComposer
             );
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Envoi du message
+            |--------------------------------------------------------------------------
+            */
+
             form.addEventListener('submit', event => {
-                if (!textarea.value.trim()) {
+
+                if (
+                    isSending ||
+                    !textarea.value.trim() ||
+                    textarea.value.length > 5000
+                ) {
+
                     event.preventDefault();
+
+                    return;
+
+                }
+
+                if (event.defaultPrevented) {
                     return;
                 }
 
+                isSending = true;
+
                 button.disabled = true;
 
-                button.querySelector('span').textContent =
-                    'Envoi en cours...';
+                label.textContent = 'Envoi en cours...';
+
+                form.setAttribute('aria-busy', 'true');
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Réactivation après navigation
+            |--------------------------------------------------------------------------
+            */
+
+            window.addEventListener('pageshow', () => {
+
+                isSending = false;
+
+                label.textContent = 'Envoyer';
+
+                form.removeAttribute('aria-busy');
+
+                updateComposer();
+
             });
 
             updateComposer();
+
         })();
     </script>
 

@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
+use App\Notifications\NewEquipmentRequestNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\User;
-use App\Notifications\NewEquipmentRequestNotification;
 use Illuminate\Support\Facades\Notification;
 
 class EquipmentRequest extends Model
@@ -45,18 +45,41 @@ class EquipmentRequest extends Model
     }
 
     protected static function booted(): void
-   {
-    static::created(function (EquipmentRequest $order): void {
-        $admins = User::query()
-            ->where('role', 'admin')
-            ->where('is_active', true)
-            ->get();
+    {
+        static::created(function (EquipmentRequest $order): void {
 
-        Notification::send(
-            $admins,
-            new NewEquipmentRequestNotification($order)
-        );
-    });
-   }
+            $exhibitor = $order->exhibitor;
 
+            // Tous les administrateurs actifs.
+            $admins = User::query()
+                ->where('role', UserRole::Admin->value)
+                ->where('is_active', true)
+                ->get();
+
+            // Commercial responsable de cet exposant.
+            $commercial = $exhibitor?->commercial;
+
+            $recipients = $admins;
+
+            if (
+                $commercial
+                && $commercial->role === UserRole::Commercial
+                && $commercial->is_active
+            ) {
+                $recipients->push($commercial);
+            }
+
+            // Éviter tout doublon.
+            $recipients = $recipients
+                ->unique('id')
+                ->values();
+
+            if ($recipients->isNotEmpty()) {
+                Notification::send(
+                    $recipients,
+                    new NewEquipmentRequestNotification($order)
+                );
+            }
+        });
+    }
 }
