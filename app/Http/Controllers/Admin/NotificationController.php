@@ -110,9 +110,9 @@ class NotificationController extends Controller
         $selectedNotification = null;
 
         if (!empty($filters['selected'])) {
-            $selectedNotification = $admin
-                ->notifications()
-                ->find($filters['selected']);
+            $selectedNotification = (clone $query)
+            ->whereKey($filters['selected'])
+            ->first();
         }
 
         // Afficher la première notification par défaut.
@@ -152,47 +152,82 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function open(
-        Request $request,
-        string $notification
-    ): RedirectResponse {
-        $item = $request->user()
-            ->notifications()
-            ->findOrFail($notification);
+    
+public function open(
+    Request $request,
+    string $notification
+): RedirectResponse {
+    $admin = $request->user();
 
-        $item->markAsRead();
+    // Seules les notifications de cet admin sont accessibles.
+    $item = $admin->notifications()
+        ->findOrFail($notification);
 
-        $data = $item->data;
+    $item->markAsRead();
 
-        // Destination générée par les routes Laravel.
-        // On n'utilise jamais une URL arbitraire
-        // enregistrée dans les données.
-        $destination = match ($data['type'] ?? null) {
-            'equipment_request' => (
-                isset($data['equipment_request_id'])
-                    ? route(
-                        'admin.demandes.show',
-                        $data['equipment_request_id']
-                    )
-                    : route('admin.demandes.index')
-            ),
+    $data = $item->data ?? [];
 
-            'exhibitor' => (
-                isset($data['exhibitor_id'])
-                    ? route(
-                        'admin.exposants.show',
-                        $data['exhibitor_id']
-                    )
-                    : route('admin.exposants.index')
-            ),
+    $fallback = route('admin.notifications.index');
 
-            default => route(
-                'admin.notifications.index'
-            ),
-        };
+    // Notification d'une demande d'équipements
+    if (($data['type'] ?? null) === 'equipment_request') {
+        $id = $data['equipment_request_id'] ?? null;
 
-        return redirect()->to($destination);
+        if (
+            !is_scalar($id) ||
+            !ctype_digit((string) $id) ||
+            (int) $id < 1
+        ) {
+            return redirect()->route('admin.demandes.index');
+        }
+
+        $exists = \App\Models\EquipmentRequest::query()
+            ->whereKey((int) $id)
+            ->exists();
+
+        if (!$exists) {
+            return redirect()
+                ->route('admin.demandes.index')
+                ->with('status', 'Cette demande n’est plus disponible.');
+        }
+
+        return redirect()->route(
+            'admin.demandes.show',
+            (int) $id
+        );
     }
+
+    // Notification d'un nouvel exposant
+    if (($data['type'] ?? null) === 'exhibitor') {
+        $id = $data['exhibitor_id'] ?? null;
+
+        if (
+            !is_scalar($id) ||
+            !ctype_digit((string) $id) ||
+            (int) $id < 1
+        ) {
+            return redirect()->route('admin.exposants.index');
+        }
+
+        $exists = \App\Models\Exhibitor::query()
+            ->whereKey((int) $id)
+            ->exists();
+
+        if (!$exists) {
+            return redirect()
+                ->route('admin.exposants.index')
+                ->with('status', 'Cet exposant n’est plus disponible.');
+        }
+
+        return redirect()->route(
+            'admin.exposants.show',
+            (int) $id
+        );
+    }
+
+    return redirect()->to($fallback);
+}
+
 
     public function markRead(
         Request $request,
