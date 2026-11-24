@@ -8,56 +8,85 @@ use App\Notifications\SlotEveReminderNotification;
 use App\Notifications\SlotSupportReminderNotification;
 use App\Services\SlotService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 
-/**
- * Rappels automatiques des créneaux vendus (réservés ou payés) :
- * - J‑7 (ou moins si la commande a été manquée) : support pas encore envoyé ;
- * - la veille : arrivée 15 minutes avant pour le test technique.
- *
- * Chaque rappel n'est envoyé qu'une fois (colonnes *_sent_at).
- */
 class SendSlotReminders extends Command
 {
     protected $signature = 'slots:send-reminders';
 
-    protected $description = 'Envoie les rappels J-7 (support) et J-1 (test technique) des créneaux de conférence et du lounge';
+    protected $description = 'Envoie les rappels supports et les rappels des intervenants';
 
     public function handle(SlotService $service): int
     {
         $today = now()->startOfDay();
-        $sold = [SlotStatus::Reserved->value, SlotStatus::Paid->value];
 
-        // Titulaire joignable : exposant inscrit, ou personne externe avec un e-mail.
-        $reachable = fn ($query) => $query->whereNotNull('exhibitor_id')->orWhereNotNull('contact_email');
+        $eventStart = Carbon::parse('2027-02-02')->startOfDay();
 
-        $supportReminders = Slot::query()
-            ->whereIn('status', $sold)
-            ->where($reachable)
-            ->whereNull('support_path')
-            ->whereNull('support_reminder_sent_at')
-            ->whereDate('date', '>', $today->toDateString())
-            ->whereDate('date', '<=', $today->copy()->addDays(7)->toDateString())
-            ->get();
+        $supportDeadline = $eventStart->copy()->subDays(7);
 
-        foreach ($supportReminders as $slot) {
-            $service->notifyHolder($slot, new SlotSupportReminderNotification($slot));
-            $slot->update(['support_reminder_sent_at' => now()]);
+        $sold = [
+            SlotStatus::Reserved->value,
+            SlotStatus::Paid->value,
+        ];
+
+        $reachable = fn ($query) => $query
+            ->whereNotNull('exhibitor_id')
+            ->orWhereNotNull('contact_email');
+
+        $supportCount = 0;
+
+        if (
+            $today->greaterThanOrEqualTo($supportDeadline)
+            && $today->lessThan($eventStart)
+        ) {
+            $supportSlots = Slot::query()
+                ->whereIn('status', $sold)
+                ->where($reachable)
+                ->whereNull('support_path')
+                ->whereNull('support_reminder_sent_at')
+                ->whereDate('date', '>=', $eventStart->toDateString())
+                ->get();
+
+            foreach ($supportSlots as $slot) {
+                if ($service->notifyHolder(
+                    $slot,
+                    new SlotSupportReminderNotification($slot)
+                )) {
+                    $slot->update([
+                        'support_reminder_sent_at' => now(),
+                    ]);
+
+                    $supportCount++;
+                }
+            }
         }
 
-        $eveReminders = Slot::query()
+        $tomorrow = $today->copy()->addDay()->toDateString();
+
+        $eveSlots = Slot::query()
             ->whereIn('status', $sold)
             ->where($reachable)
             ->whereNull('eve_reminder_sent_at')
-            ->whereDate('date', $today->copy()->addDay()->toDateString())
+            ->whereDate('date', $tomorrow)
             ->get();
 
-        foreach ($eveReminders as $slot) {
-            $service->notifyHolder($slot, new SlotEveReminderNotification($slot));
-            $slot->update(['eve_reminder_sent_at' => now()]);
+        $eveCount = 0;
+
+        foreach ($eveSlots as $slot) {
+            if ($service->notifyHolder(
+                $slot,
+                new SlotEveReminderNotification($slot)
+            )) {
+                $slot->update([
+                    'eve_reminder_sent_at' => now(),
+                ]);
+
+                $eveCount++;
+            }
         }
 
-        $this->info("Rappels support envoyés : {$supportReminders->count()}");
-        $this->info("Rappels veille envoyés : {$eveReminders->count()}");
+        $this->info("Rappels support envoyés : {$supportCount}");
+        $this->info("Rappels veille envoyés : {$eveCount}");
 
         return self::SUCCESS;
     }

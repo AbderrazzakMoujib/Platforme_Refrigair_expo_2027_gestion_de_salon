@@ -66,7 +66,7 @@ class UpdateSlotForm extends FormRequest
         return [
             'status' => ['required', Rule::enum(SlotStatus::class)],
             'holder_type' => ['required', Rule::in([self::HOLDER_EXHIBITOR, self::HOLDER_EXTERNAL])],
-            'exhibitor_id' => ['nullable', 'integer', 'exists:exhibitors,id'],
+            'exhibitor_id' => ['nullable', 'integer', Rule::exists('exhibitors', 'id')->where('commercial_id', $this->user()->id)],
             'exhibitor_name' => ['nullable', 'string', 'max:255'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],

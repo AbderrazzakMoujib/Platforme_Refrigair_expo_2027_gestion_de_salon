@@ -7,4 +7,5 @@ enum UserRole: string
     case Admin = 'admin';
     case Commercial = 'commercial';
     case Exposant = 'exposant';
+    case ResponsableConferences = 'responsable_conferences';
 }

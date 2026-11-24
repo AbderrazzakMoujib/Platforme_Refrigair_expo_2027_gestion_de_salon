@@ -1,0 +1,6 @@
+<x-responsable-conferences.layout :user="auth()->user()">
+    <div class="space-y-6"><header><p class="text-sm font-semibold text-blue-600">Réservations</p><h1 class="mt-1 text-3xl font-extrabold text-[#0F2347]">Réservations confirmées</h1><p class="mt-2 text-sm text-slate-500">Décisions de confirmation enregistrées avec leur créneau et leur décideur.</p></header>
+        @forelse ($confirmations as $confirmation)<article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm"><div class="flex flex-wrap justify-between gap-3"><div><h2 class="font-bold text-[#0F2347]">{{ $confirmation->request_title }}</h2><p class="mt-1 text-sm text-slate-500">{{ $confirmation->exhibitor_name }} · confirmé le {{ $confirmation->processed_at->format('d/m/Y à H:i') }} par {{ $confirmation->processor_name }}</p></div><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{{ $confirmation->assignedSlot?->code ?? 'Créneau supprimé' }}</span></div></article>@empty<div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">Aucune réservation confirmée pour le moment.</div>@endforelse
+        {{ $confirmations->links() }}
+    </div>
+</x-responsable-conferences.layout>

@@ -185,7 +185,7 @@
                     ['label' => 'Gérer mes exposants', 'icon' => 'users', 'href' => route('commercial.exhibitors.index'), 'count' => null],
                     ['label' => 'Ajouter un exposant', 'icon' => 'user-plus', 'href' => route('commercial.exhibitors.create'), 'count' => null],
                     ['label' => 'Badges de mes exposants', 'icon' => 'badge', 'href' => route('commercial.badges.index'), 'count' => null],
-                    ['label' => 'Assistance', 'icon' => 'inbox', 'href' => route('commercial.support.index'), 'count' => $activeTickets],
+                    ['label' => 'Assistance', 'icon' => 'inbox', 'href' => route('commercial.support.index'), 'count' => \App\Models\SupportTicket::query()->unreadForCommercial((int) $commercial->id)->count()],
                     ['label' => 'Notifications', 'icon' => 'bell', 'href' => route('commercial.notifications.index'), 'count' => $unreadNotificationsCount],
                 ] as $action)
                     <a href="{{ $action['href'] }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">

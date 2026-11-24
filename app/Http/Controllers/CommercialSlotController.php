@@ -30,10 +30,34 @@ class CommercialSlotController extends Controller
 
         $spaces = Space::query()->orderBy('id')->get();
 
+        $commercial = $request->user();
         $slots = Slot::query()
-            ->with(['space:id,type,name', 'exhibitor:id,company_name'])
+            ->with(['space:id,type,name', 'exhibitor:id,company_name,commercial_id'])
             ->ordered()
             ->get();
+
+        // Le commercial ne reÃ§oit pas les coordonnÃ©es ni le sujet des clients d'un collÃ¨gue.
+        $slots->each(function (Slot $slot) use ($commercial): void {
+            $ownerId = $slot->exhibitor_id !== null
+                ? $slot->exhibitor?->commercial_id
+                : $slot->commercial_id;
+
+            if ($slot->status->isTaken() && $ownerId !== $commercial->id) {
+                $slot->setRelation('exhibitor', null);
+                $slot->forceFill([
+                    'exhibitor_name' => null,
+                    'contact_name' => null,
+                    'contact_email' => null,
+                    'contact_phone' => null,
+                    'title' => null,
+                    'summary' => null,
+                    'speakers' => null,
+                    'notes' => null,
+                    'support_path' => null,
+                    'support_original_name' => null,
+                ]);
+            }
+        });
 
         // Planning : jour → espace → créneaux.
         $planning = $slots
@@ -49,9 +73,18 @@ class CommercialSlotController extends Controller
             'slots' => $slots,
             'planning' => $planning,
             'statuses' => SlotStatus::cases(),
-            'exhibitors' => Exhibitor::query()->orderBy('company_name')->get(['id', 'company_name']),
+            'exhibitors' => Exhibitor::query()->where('commercial_id', $commercial->id)->orderBy('company_name')->get(['id', 'company_name']),
             'stats' => $this->service->stats(),
-            'pendingRequestsCount' => SlotRequest::query()->where('status', SlotRequestStatus::Pending)->count(),
+            'pendingRequestsCount' => SlotRequest::query()->where('status', SlotRequestStatus::Pending)
+                ->whereHas('exhibitor', fn ($query) => $query->where('commercial_id', $commercial->id))
+                ->count(),
+            'recentRequests' => SlotRequest::query()
+                ->where('status', SlotRequestStatus::Pending)
+                ->whereHas('exhibitor', fn ($query) => $query->where('commercial_id', $commercial->id))
+                ->with(['exhibitor:id,company_name', 'firstChoice:id,code,date,start_time,end_time'])
+                ->latest('id')
+                ->limit(4)
+                ->get(),
         ]);
     }
 
@@ -60,7 +93,7 @@ class CommercialSlotController extends Controller
         $wasFree = ! $slot->status->isTaken();
 
         try {
-            $slot = $this->service->update($slot, $request->validated());
+            $slot = $this->service->update($slot, $request->validated(), $request->user());
         } catch (ValidationException $exception) {
             throw $exception->errorBag('slot');
         }

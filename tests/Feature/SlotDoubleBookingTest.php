@@ -15,6 +15,11 @@ class SlotDoubleBookingTest extends TestCase
 {
     use RefreshDatabase, SlotFixtures;
 
+    private function conferenceManager(): \App\Models\User
+    {
+        return \App\Models\User::factory()->create(['role' => 'responsable_conferences', 'is_active' => true]);
+    }
+
     private function assign(Slot $slot, array $data)
     {
         return $this->put(route('commercial.slots.update', $slot), $data + ['slot_id' => $slot->id]);
@@ -24,8 +29,8 @@ class SlotDoubleBookingTest extends TestCase
     {
         $this->seedSlots();
         $commercial = $this->commercial();
-        $first = $this->exhibitor('ClimaTech');
-        $second = $this->exhibitor('FroidPlus');
+        $first = $this->exhibitor('ClimaTech', commercial: $commercial);
+        $second = $this->exhibitor('FroidPlus', commercial: $commercial);
         $slot = $this->slot('C2-1');
 
         $this->actingAs($commercial);
@@ -45,20 +50,25 @@ class SlotDoubleBookingTest extends TestCase
     public function test_an_initial_booking_cannot_be_overwritten_with_a_free_name(): void
     {
         $this->seedSlots();
-        $this->actingAs($this->commercial());
+        $commercial = $this->commercial();
+        $slot = $this->slot('C2-2');
+        $slot->update(['status' => SlotStatus::Reserved, 'exhibitor_name' => 'Media', 'commercial_id' => $commercial->id]);
+        $this->actingAs($commercial);
 
-        $this->assign($this->slot('C2-2'), ['status' => 'option', 'exhibitor_name' => 'Concurrent'])
+        $this->assign($slot, ['status' => 'option', 'exhibitor_name' => 'Concurrent'])
             ->assertSessionHasErrors('exhibitor_id', null, 'slot');
 
-        $this->assertSame('Media', $this->slot('C2-2')->exhibitor_name);
+        $this->assertSame('Media', $slot->fresh()->exhibitor_name);
     }
 
     public function test_the_same_holder_can_update_details_and_a_freed_slot_can_be_reassigned(): void
     {
         $this->seedSlots();
-        $other = $this->exhibitor('FroidPlus');
-        $this->actingAs($this->commercial());
+        $commercial = $this->commercial();
+        $other = $this->exhibitor('FroidPlus', commercial: $commercial);
         $slot = $this->slot('C2-2');
+        $slot->update(['status' => SlotStatus::Reserved, 'exhibitor_name' => 'Media', 'commercial_id' => $commercial->id]);
+        $this->actingAs($commercial);
 
         // Même titulaire : passage en payé et ajout du titre.
         $this->assign($slot, ['status' => 'paid', 'exhibitor_name' => 'media', 'title' => 'Innovation'])
@@ -91,7 +101,7 @@ class SlotDoubleBookingTest extends TestCase
     public function test_two_requests_on_the_same_slot_cannot_both_be_accepted(): void
     {
         $this->seedSlots();
-        $commercial = $this->commercial();
+        $manager = $this->conferenceManager();
         $slot = $this->slot('C2-1');
 
         $requests = collect(['ClimaTech', 'FroidPlus'])->map(fn (string $company) => SlotRequest::create([
@@ -103,13 +113,13 @@ class SlotDoubleBookingTest extends TestCase
             'first_choice_slot_id' => $slot->id,
         ]));
 
-        $this->actingAs($commercial);
+        $this->actingAs($manager);
 
-        $this->patch(route('commercial.slot-requests.accept', $requests[0]), ['slot_id' => $slot->id])
+        $this->patch(route('responsable-conferences.requests.accept', $requests[0]), ['slot_id' => $slot->id])
             ->assertSessionHasNoErrors();
 
-        $this->patch(route('commercial.slot-requests.accept', $requests[1]), ['slot_id' => $slot->id])
-            ->assertSessionHasErrors('slot_id');
+        $this->patch(route('responsable-conferences.requests.accept', $requests[1]), ['slot_id' => $slot->id])
+            ->assertSessionHasErrorsIn('slot-request', 'slot_id');
 
         $this->assertSame($requests[0]->exhibitor_id, $slot->fresh()->exhibitor_id);
         $this->assertSame(SlotRequestStatus::Accepted, $requests[0]->fresh()->status);
@@ -128,9 +138,9 @@ class SlotDoubleBookingTest extends TestCase
             'first_choice_slot_id' => $this->slot('C2-1')->id,
         ]);
 
-        $this->actingAs($this->commercial())
-            ->patch(route('commercial.slot-requests.accept', $request), ['slot_id' => $this->slot('C3-1')->id])
-            ->assertSessionHasErrors('slot_id');
+        $this->actingAs($this->conferenceManager())
+            ->patch(route('responsable-conferences.requests.accept', $request), ['slot_id' => $this->slot('C3-1')->id])
+            ->assertSessionHasErrorsIn('slot-request', 'slot_id');
 
         $this->assertSame(SlotStatus::Available, $this->slot('C3-1')->status);
     }
@@ -139,6 +149,8 @@ class SlotDoubleBookingTest extends TestCase
     {
         $this->seedSlots();
         $exhibitor = $this->exhibitor('ClimaTech');
+        $taken = $this->slot('C2-2');
+        $taken->update(['status' => SlotStatus::Reserved, 'exhibitor_name' => 'Media']);
 
         $payload = [
             'type' => 'conference',

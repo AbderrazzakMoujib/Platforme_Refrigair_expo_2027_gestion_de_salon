@@ -8,6 +8,7 @@ use App\Enums\SpaceType;
 use App\Models\Exhibitor;
 use App\Models\Slot;
 use App\Models\SlotRequest;
+use App\Models\SlotRequestDecision;
 use App\Models\User;
 use App\Notifications\SlotConfirmedNotification;
 use App\Notifications\SlotRequestRejectedNotification;
@@ -15,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -36,11 +38,11 @@ class SlotService
      *
      * @param  array{status: string, exhibitor_id?: ?int, exhibitor_name?: ?string, contact_name?: ?string, contact_email?: ?string, contact_phone?: ?string, title?: ?string, summary?: ?string, speakers?: ?string, notes?: ?string}  $data
      */
-    public function update(Slot $slot, array $data): Slot
+    public function update(Slot $slot, array $data, User $commercial): Slot
     {
         $wasConfirmed = false;
 
-        $slot = DB::transaction(function () use ($slot, $data, &$wasConfirmed): Slot {
+        $slot = DB::transaction(function () use ($slot, $data, $commercial, &$wasConfirmed): Slot {
             /** @var Slot $locked */
             $locked = Slot::query()->lockForUpdate()->findOrFail($slot->id);
 
@@ -80,6 +82,7 @@ class SlotService
             $locked->update($contact + [
                 'status' => $status,
                 'exhibitor_id' => $exhibitorId,
+                'commercial_id' => $status === SlotStatus::Available ? null : $commercial->id,
                 'exhibitor_name' => $exhibitorName,
                 'title' => $data['title'] ?? null,
                 'summary' => $data['summary'] ?? null,
@@ -104,6 +107,8 @@ class SlotService
             /** @var SlotRequest $lockedRequest */
             $lockedRequest = SlotRequest::query()->lockForUpdate()->findOrFail($request->id);
 
+            Gate::forUser($processor)->authorize('process', $lockedRequest);
+
             if ($lockedRequest->status !== SlotRequestStatus::Pending) {
                 throw ValidationException::withMessages(['slot_id' => 'Cette demande a déjà été traitée.']);
             }
@@ -122,10 +127,13 @@ class SlotService
             }
 
             $this->resetHolderData($slot);
+            $exhibitor = Exhibitor::query()->findOrFail($lockedRequest->exhibitor_id);
+            $processedAt = now();
 
             $slot->update([
                 'status' => SlotStatus::Reserved,
                 'exhibitor_id' => $lockedRequest->exhibitor_id,
+                'commercial_id' => $exhibitor->commercial_id,
                 'exhibitor_name' => null,
                 'contact_name' => null,
                 'contact_email' => null,
@@ -140,7 +148,20 @@ class SlotService
                 'assigned_slot_id' => $slot->id,
                 'rejection_reason' => null,
                 'processed_by' => $processor->id,
-                'processed_at' => now(),
+                'processed_at' => $processedAt,
+            ]);
+
+            SlotRequestDecision::query()->create([
+                'slot_request_id' => $lockedRequest->id,
+                'exhibitor_id' => $exhibitor->id,
+                'exhibitor_name' => $exhibitor->company_name,
+                'request_title' => $lockedRequest->title,
+                'request_type' => $lockedRequest->type->value,
+                'decision' => SlotRequestStatus::Accepted->value,
+                'assigned_slot_id' => $slot->id,
+                'processed_by' => $processor->id,
+                'processor_name' => $processor->name,
+                'processed_at' => $processedAt,
             ]);
 
             return $slot;
@@ -155,12 +176,41 @@ class SlotService
     {
         abort_unless($request->status === SlotRequestStatus::Pending, 422, 'Cette demande a déjà été traitée.');
 
-        $request->update([
-            'status' => SlotRequestStatus::Rejected,
-            'rejection_reason' => $reason,
-            'processed_by' => $processor->id,
-            'processed_at' => now(),
-        ]);
+        $request = DB::transaction(function () use ($request, $reason, $processor): SlotRequest {
+            /** @var SlotRequest $lockedRequest */
+            $lockedRequest = SlotRequest::query()->lockForUpdate()->findOrFail($request->id);
+
+            Gate::forUser($processor)->authorize('process', $lockedRequest);
+
+            if ($lockedRequest->status !== SlotRequestStatus::Pending) {
+                throw ValidationException::withMessages(['rejection_reason' => 'Cette demande a déjà été traitée.']);
+            }
+
+            $exhibitor = Exhibitor::query()->findOrFail($lockedRequest->exhibitor_id);
+            $processedAt = now();
+
+            $lockedRequest->update([
+                'status' => SlotRequestStatus::Rejected,
+                'rejection_reason' => $reason,
+                'processed_by' => $processor->id,
+                'processed_at' => $processedAt,
+            ]);
+
+            SlotRequestDecision::query()->create([
+                'slot_request_id' => $lockedRequest->id,
+                'exhibitor_id' => $exhibitor->id,
+                'exhibitor_name' => $exhibitor->company_name,
+                'request_title' => $lockedRequest->title,
+                'request_type' => $lockedRequest->type->value,
+                'decision' => SlotRequestStatus::Rejected->value,
+                'reason' => $reason,
+                'processed_by' => $processor->id,
+                'processor_name' => $processor->name,
+                'processed_at' => $processedAt,
+            ]);
+
+            return $lockedRequest;
+        });
 
         $exhibitor = $request->exhibitor;
 

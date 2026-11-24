@@ -64,14 +64,12 @@
     // Compteurs affichés dans la navigation (données du commercial connecté uniquement).
     $navCounts = [
         'commercial.support.index' => \App\Models\SupportTicket::query()
-            ->where('commercial_id', $commercial->id)
-            ->whereHas('exhibitor', fn ($query) => $query->where('commercial_id', $commercial->id))
-            ->where('status', 'pending')
+            ->unreadForCommercial((int) $commercial->id)
             ->count(),
         'commercial.notifications.index' => $commercial->unreadNotifications()->count(),
     ];
     $navCountLabels = [
-        'commercial.support.index' => 'demande(s) en attente',
+        'commercial.support.index' => 'demande(s) avec message(s) non lu(s)',
         'commercial.notifications.index' => 'notification(s) non lue(s)',
     ];
 @endphp

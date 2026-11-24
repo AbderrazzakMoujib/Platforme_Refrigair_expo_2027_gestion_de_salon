@@ -22,6 +22,12 @@
             'active' => request()->routeIs('admin.commerciaux.*'),
         ],
         [
+            'label' => 'Responsables Conférences',
+            'icon' => 'users',
+            'route' => 'admin.responsables-conferences.index',
+            'active' => request()->routeIs('admin.responsables-conferences.*'),
+        ],
+        [
             'label' => 'Exposants',
             'icon' => 'users',
             'route' => 'admin.exposants.index',

@@ -1,146 +1,82 @@
-@php
-    use App\Enums\SlotRequestStatus;
-
-    $tabs = [
-        'pending' => 'En attente',
-        'accepted' => 'Acceptées',
-        'rejected' => 'Refusées',
-        'all' => 'Toutes',
-    ];
-@endphp
-
 <x-commercial.layout :commercial="$commercial" :commercial-initials="$commercialInitials">
-    <div class="min-w-0 space-y-7">
-
-        <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Fil d'Ariane">
-            <a href="{{ route('commercial.index') }}" class="transition hover:text-blue-600">Espace commercial</a>
-            <span aria-hidden="true">/</span>
-            <a href="{{ route('commercial.slots.index') }}" class="transition hover:text-blue-600">Conférences & Lounge</a>
-            <span aria-hidden="true">/</span>
-            <span class="font-semibold text-[#0F2347]">Demandes</span>
-        </nav>
-
-        <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div class="mx-auto max-w-7xl space-y-6">
+        <header class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight text-[#0F2347] sm:text-3xl">Demandes de créneaux</h1>
-                <p class="mt-2 text-sm text-slate-500">Acceptez une demande pour attribuer le créneau choisi par l'exposant, ou refusez-la avec un motif.</p>
+                <p class="text-sm font-semibold text-blue-600">Conférences & Lounge</p>
+                <h1 class="mt-1 text-3xl font-extrabold text-[#0F2347]">Mes demandes</h1>
+                <p class="mt-2 text-sm text-slate-500">Vous ne voyez que les demandes des exposants qui vous sont rattachés.</p>
             </div>
-            <a href="{{ route('commercial.slots.index') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">← Retour au planning</a>
+            <a href="{{ route('commercial.slots.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Retour au planning</a>
         </header>
 
         @if (session('status'))
-            <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">{{ session('status') }}</div>
+            <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{{ session('status') }}</div>
         @endif
-
         @if ($errors->any())
-            <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-                <ul class="list-disc pl-5">
-                    @foreach ($errors->all() as $message)
-                        <li>{{ $message }}</li>
-                    @endforeach
-                </ul>
-            </div>
+            <div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
 
-        <nav class="flex flex-wrap gap-2" aria-label="Filtrer par statut">
-            @foreach ($tabs as $key => $label)
-                @php $count = $key === 'all' ? $counts->sum() : ($counts[$key] ?? 0); @endphp
-                <a
-                    href="{{ route('commercial.slot-requests.index', ['status' => $key]) }}"
-                    @class([
-                        'rounded-xl px-4 py-2 text-sm font-semibold transition',
-                        'bg-[#2563EB] text-white' => $status === $key,
-                        'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50' => $status !== $key,
-                    ])
-                >
-                    {{ $label }} ({{ $count }})
-                </a>
-            @endforeach
-        </nav>
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <h2 class="text-lg font-bold text-[#0F2347]">Envoyer une demande pour un de mes exposants</h2>
+            <form method="POST" action="{{ route('commercial.slot-requests.store') }}" class="mt-5 grid gap-4 md:grid-cols-2">
+                @csrf
+                <label class="text-sm font-semibold">Exposant
+                    <select name="exhibitor_id" required class="mt-1 w-full rounded-xl border-slate-300">
+                        <option value="">Choisir un exposant</option>
+                        @foreach ($exhibitors as $exhibitor)<option value="{{ $exhibitor->id }}" @selected((string) old('exhibitor_id') === (string) $exhibitor->id)>{{ $exhibitor->company_name }}</option>@endforeach
+                    </select>
+                </label>
+                <label class="text-sm font-semibold">Espace
+                    <select name="type" required class="mt-1 w-full rounded-xl border-slate-300">
+                        @foreach ($spaceTypes as $type)<option value="{{ $type->value }}" @selected(old('type') === $type->value)>{{ $type->label() }}</option>@endforeach
+                    </select>
+                </label>
+                <label class="text-sm font-semibold md:col-span-2">Titre
+                    <input name="title" required maxlength="150" value="{{ old('title') }}" class="mt-1 w-full rounded-xl border-slate-300">
+                </label>
+                <label class="text-sm font-semibold md:col-span-2">Résumé (5 lignes maximum)
+                    <textarea name="summary" required rows="3" maxlength="800" class="mt-1 w-full rounded-xl border-slate-300">{{ old('summary') }}</textarea>
+                </label>
+                <label class="text-sm font-semibold md:col-span-2">Intervenants
+                    <textarea name="speakers" required rows="2" maxlength="500" class="mt-1 w-full rounded-xl border-slate-300">{{ old('speakers') }}</textarea>
+                </label>
+                @foreach (['first_choice_slot_id' => 'Premier choix', 'second_choice_slot_id' => 'Deuxième choix'] as $field => $label)
+                    <label class="text-sm font-semibold">{{ $label }}
+                        <select name="{{ $field }}" required class="mt-1 w-full rounded-xl border-slate-300">
+                            <option value="">Choisir un créneau disponible</option>
+                            @foreach ($availableSlots as $slot)
+                                <option value="{{ $slot->id }}" data-space="{{ $slot->space->type->value }}" @selected((string) old($field) === (string) $slot->id)>{{ $slot->code }} · {{ $slot->space->type->label() }} · {{ $slot->date->format('d/m/Y') }} · {{ $slot->time_range }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @endforeach
+                <div class="md:col-span-2 flex justify-end"><button class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">Envoyer la demande</button></div>
+            </form>
+        </section>
 
-        @forelse ($requests as $slotRequest)
-            <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70 sm:p-6">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            {{ $slotRequest->type->label() }} · reçue le {{ $slotRequest->created_at->format('d/m/Y à H:i') }}
-                        </p>
-                        <h2 class="mt-1 text-lg font-bold text-slate-900">{{ $slotRequest->title }}</h2>
-                        <p class="text-sm font-semibold text-[#2563EB]">{{ $slotRequest->exhibitor?->company_name }}</p>
+        <section class="space-y-3">
+            <div class="flex flex-wrap gap-2">
+                @foreach (['all' => 'Toutes', 'pending' => 'En attente', 'accepted' => 'Confirmées', 'rejected' => 'Refusées'] as $key => $label)
+                    <a href="{{ route('commercial.slot-requests.index', ['status' => $key]) }}" @class(['rounded-xl px-4 py-2 text-sm font-semibold', 'bg-blue-600 text-white' => $status === $key, 'bg-white text-slate-700 ring-1 ring-slate-200' => $status !== $key])>{{ $label }} ({{ $key === 'all' ? $counts->sum() : ($counts[$key] ?? 0) }})</a>
+                @endforeach
+            </div>
+
+            @forelse ($requests as $slotRequest)
+                <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div><p class="text-xs font-semibold uppercase text-slate-500">{{ $slotRequest->exhibitor?->company_name }} · {{ $slotRequest->type->label() }}</p><h2 class="mt-1 text-lg font-bold text-[#0F2347]">{{ $slotRequest->title }}</h2></div>
+                        <span class="rounded-full px-3 py-1 text-xs font-bold {{ $slotRequest->status->pillClasses() }}">{{ $slotRequest->status->label() }}</span>
                     </div>
-                    <span class="rounded-full px-3 py-1 text-xs font-bold {{ $slotRequest->status->pillClasses() }}">{{ $slotRequest->status->label() }}</span>
-                </div>
-
-                <p class="mt-4 whitespace-pre-line text-sm text-slate-600">{{ $slotRequest->summary }}</p>
-                <p class="mt-2 text-sm text-slate-500"><span class="font-semibold text-slate-700">Intervenants :</span> {{ $slotRequest->speakers }}</p>
-
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    @foreach (array_filter(['Créneau demandé' => $slotRequest->firstChoice, '2e choix' => $slotRequest->secondChoice]) ?: ['Créneau demandé' => null] as $label => $choice)
-                        <div class="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                            <p class="text-xs font-semibold text-slate-400">{{ $label }}</p>
-                            @if ($choice)
-                                <p class="mt-0.5 font-semibold capitalize text-slate-800">{{ $choice->full_label }}</p>
-                                <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold {{ $choice->status->pillClasses() }}">
-                                    {{ $choice->status->label() }}{{ $choice->holder_name ? ' · '.$choice->holder_name : '' }}
-                                </span>
-                            @else
-                                <p class="mt-0.5 text-slate-400">—</p>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-
-                @if ($slotRequest->status === SlotRequestStatus::Pending)
-                    @php
-                        $freeChoices = collect([$slotRequest->firstChoice, $slotRequest->secondChoice])
-                            ->filter(fn ($slot) => $slot && ! $slot->status->isTaken());
-                    @endphp
-
-                    <div class="mt-5 grid gap-4 border-t border-slate-100 pt-5 lg:grid-cols-2">
-                        <form method="POST" action="{{ route('commercial.slot-requests.accept', $slotRequest) }}" class="space-y-3">
-                            @csrf
-                            @method('PATCH')
-                            <p class="text-sm font-semibold text-slate-700">Accepter et attribuer</p>
-                            @forelse ($freeChoices as $choice)
-                                <label class="flex items-center gap-2 text-sm text-slate-700">
-                                    <input type="radio" name="slot_id" value="{{ $choice->id }}" @checked($loop->first) class="text-blue-600">
-                                    {{ $choice->code }} · {{ $choice->time_range }}
-                                </label>
-                            @empty
-                                <p class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">Le créneau demandé n'est plus disponible. Refusez la demande (l'exposant pourra en choisir un autre) ou attribuez un autre créneau depuis le planning.</p>
-                            @endforelse
-                            @if ($freeChoices->isNotEmpty())
-                                <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">Accepter</button>
-                            @endif
-                        </form>
-
-                        <form method="POST" action="{{ route('commercial.slot-requests.reject', $slotRequest) }}" class="space-y-3">
-                            @csrf
-                            @method('PATCH')
-                            <label class="block text-sm font-semibold text-slate-700">
-                                Motif du refus
-                                <textarea name="rejection_reason" rows="2" required maxlength="1000" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="Ex. : créneaux complets, sujet hors thématique…"></textarea>
-                            </label>
-                            <button type="submit" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100">Refuser</button>
-                        </form>
-                    </div>
-                @else
-                    <p class="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                        Traitée {{ $slotRequest->processed_at ? 'le '.$slotRequest->processed_at->format('d/m/Y à H:i') : '' }}
-                        {{ $slotRequest->processor ? 'par '.$slotRequest->processor->name : '' }}.
-                        @if ($slotRequest->assignedSlot)
-                            Créneau attribué : <span class="font-semibold text-slate-700">{{ $slotRequest->assignedSlot->code }}</span>.
-                        @endif
-                        @if ($slotRequest->rejection_reason)
-                            Motif : {{ $slotRequest->rejection_reason }}
-                        @endif
-                    </p>
-                @endif
-            </article>
-        @empty
-            <x-admin.empty-state title="Aucune demande" description="Les demandes envoyées par les exposants apparaîtront ici." />
-        @endforelse
-
-        {{ $requests->links() }}
+                    <p class="mt-3 whitespace-pre-line text-sm text-slate-600">{{ $slotRequest->summary }}</p>
+                    <p class="mt-2 text-sm text-slate-600">Choix : {{ $slotRequest->firstChoice?->code }} · {{ $slotRequest->secondChoice?->code }}</p>
+                    @if ($slotRequest->processed_at)
+                        <p class="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-500">Décision le {{ $slotRequest->processed_at->format('d/m/Y à H:i') }}@if ($slotRequest->processor) par {{ $slotRequest->processor->name }}@endif @if ($slotRequest->assignedSlot) · Créneau attribué : {{ $slotRequest->assignedSlot->code }}@endif @if ($slotRequest->rejection_reason) · Motif : {{ $slotRequest->rejection_reason }}@endif</p>
+                    @endif
+                </article>
+            @empty
+                <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Aucune demande dans cette vue.</div>
+            @endforelse
+            {{ $requests->links() }}
+        </section>
     </div>
 </x-commercial.layout>

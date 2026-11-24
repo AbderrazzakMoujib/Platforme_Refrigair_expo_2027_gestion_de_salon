@@ -1,0 +1,8 @@
+<x-responsable-conferences.layout :user="auth()->user()">
+    <div class="space-y-6">
+        <header><p class="text-sm font-semibold text-blue-600">Conférences & Lounge</p><h1 class="mt-1 text-3xl font-extrabold text-[#0F2347]">Planning complet</h1><p class="mt-2 text-sm text-slate-500">Créneaux, titulaires et statut des réservations.</p></header>
+        @foreach ($slots->groupBy(fn ($slot) => $slot->date->toDateString()) as $date => $daySlots)
+            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><h2 class="border-b border-slate-100 p-4 font-bold text-[#0F2347]">{{ \Illuminate\Support\Carbon::parse($date)->locale('fr')->isoFormat('dddd D MMMM YYYY') }}</h2><div class="overflow-x-auto"><table class="w-full min-w-[820px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="p-3">Créneau</th><th class="p-3">Espace</th><th class="p-3">Horaire</th><th class="p-3">Statut</th><th class="p-3">Titulaire</th><th class="p-3">Commercial</th><th class="p-3">Sujet</th></tr></thead><tbody class="divide-y divide-slate-100">@foreach ($daySlots as $slot)<tr><td class="p-3 font-bold">{{ $slot->code }}</td><td class="p-3">{{ $slot->space->type->label() }}</td><td class="p-3">{{ $slot->time_range }}</td><td class="p-3">{{ $slot->status->label() }}</td><td class="p-3">{{ $slot->holder_name ?? '—' }}</td><td class="p-3">{{ $slot->exhibitor?->commercial?->name ?? $slot->commercial?->name ?? '—' }}</td><td class="p-3">{{ $slot->title ?? '—' }}</td></tr>@endforeach</tbody></table></div></section>
+        @endforeach
+    </div>
+</x-responsable-conferences.layout>

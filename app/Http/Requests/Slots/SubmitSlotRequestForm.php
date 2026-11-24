@@ -12,7 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-/** Demande de créneau envoyée par l'exposant. */
 class SubmitSlotRequestForm extends FormRequest
 {
     public function authorize(): bool
@@ -25,33 +24,73 @@ class SubmitSlotRequestForm extends FormRequest
         return [
             'type' => ['required', Rule::enum(SpaceType::class)],
             'title' => ['required', 'string', 'max:150'],
-            'summary' => ['required', 'string', 'max:800', new MaxLines(5)],
+            'summary' => [
+                'required',
+                'string',
+                'max:800',
+                new MaxLines(5),
+            ],
             'speakers' => ['required', 'string', 'max:500'],
-            // Un seul créneau par demande.
-            'first_choice_slot_id' => ['required', 'integer', 'exists:slots,id'],
+
+            'first_choice_slot_id' => [
+                'required',
+                'integer',
+                'exists:slots,id',
+            ],
+            'second_choice_slot_id' => [
+                'required',
+                'integer',
+                'different:first_choice_slot_id',
+                'exists:slots,id',
+            ],
         ];
     }
 
-    /** Le créneau choisi doit être libre et appartenir au type d'espace demandé. */
     public function after(): array
     {
         return [
             function (Validator $validator): void {
-                $field = 'first_choice_slot_id';
-                $type = SpaceType::tryFrom((string) $this->input('type'));
+                $type = SpaceType::tryFrom(
+                    (string) $this->input('type')
+                );
 
-                if (! $type || ! $this->filled($field) || $validator->errors()->has($field)) {
+                if (! $type) {
                     return;
                 }
 
-                $slot = Slot::query()->with('space:id,type')->find($this->integer($field));
+                $fields = [
+                    'first_choice_slot_id',
+                    'second_choice_slot_id',
+                ];
 
-                if (! $slot || $slot->space->type !== $type) {
-                    $validator->errors()->add($field, 'Ce créneau ne correspond pas à l\'espace choisi.');
-                } elseif ($slot->status !== SlotStatus::Available) {
-                    $validator->errors()->add($field, "Le créneau {$slot->code} n'est plus disponible.");
-                } elseif ($this->alreadyRequested($slot)) {
-                    $validator->errors()->add($field, "Vous avez déjà une demande en attente pour le créneau {$slot->code}.");
+                foreach ($fields as $field) {
+                    if (
+                        ! $this->filled($field)
+                        || $validator->errors()->has($field)
+                    ) {
+                        continue;
+                    }
+
+                    $slot = Slot::query()
+                        ->with('space:id,type')
+                        ->find($this->integer($field));
+
+                    if (! $slot || $slot->space?->type !== $type) {
+                        $validator->errors()->add(
+                            $field,
+                            'Le créneau choisi ne correspond pas à cet espace.'
+                        );
+                    } elseif ($slot->status !== SlotStatus::Available) {
+                        $validator->errors()->add(
+                            $field,
+                            "Le créneau {$slot->code} n'est plus disponible."
+                        );
+                    } elseif ($this->alreadyRequested($slot)) {
+                        $validator->errors()->add(
+                            $field,
+                            "Vous avez déjà une demande en attente pour le créneau {$slot->code}."
+                        );
+                    }
                 }
             },
         ];
@@ -59,10 +98,19 @@ class SubmitSlotRequestForm extends FormRequest
 
     private function alreadyRequested(Slot $slot): bool
     {
+        $exhibitorId = $this->user()
+            ->exhibitorProfile()
+            ->firstOrFail()
+            ->id;
+
         return SlotRequest::query()
-            ->whereIn('exhibitor_id', $this->user()->exhibitorProfile()->select('id'))
+            ->where('exhibitor_id', $exhibitorId)
             ->where('status', SlotRequestStatus::Pending)
-            ->where('first_choice_slot_id', $slot->id)
+            ->where(function ($query) use ($slot): void {
+                $query
+                    ->where('first_choice_slot_id', $slot->id)
+                    ->orWhere('second_choice_slot_id', $slot->id);
+            })
             ->exists();
     }
 
@@ -73,7 +121,8 @@ class SubmitSlotRequestForm extends FormRequest
             'title' => 'titre',
             'summary' => 'résumé',
             'speakers' => 'intervenants',
-            'first_choice_slot_id' => 'créneau',
+            'first_choice_slot_id' => 'premier créneau',
+            'second_choice_slot_id' => 'deuxième créneau',
         ];
     }
 }

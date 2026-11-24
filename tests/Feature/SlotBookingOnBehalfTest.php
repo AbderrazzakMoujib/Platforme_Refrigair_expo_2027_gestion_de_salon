@@ -30,9 +30,10 @@ class SlotBookingOnBehalfTest extends TestCase
     {
         Notification::fake();
         $this->seedSlots();
-        $exhibitor = $this->exhibitor('ClimaTech');
+        $commercial = $this->commercial();
+        $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
 
-        $this->actingAs($this->commercial());
+        $this->actingAs($commercial);
 
         // Exposant non choisi : refusé.
         $this->book('C3-1', ['status' => 'reserved', 'holder_type' => 'exhibitor'])
@@ -100,15 +101,15 @@ class SlotBookingOnBehalfTest extends TestCase
         // Visible côté admin, avec ses coordonnées.
         $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('admin.slots.index'))
-            ->assertSee('Non exposant')
-            ->assertSee('y.benali@atlas.test');
+            ->assertSee('Atlas Froid');
     }
 
     public function test_saving_a_free_slot_with_a_holder_reserves_it_even_if_status_was_left_on_available(): void
     {
         $this->seedSlots();
-        $exhibitor = $this->exhibitor('ClimaTech');
-        $this->actingAs($this->commercial());
+        $commercial = $this->commercial();
+        $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
+        $this->actingAs($commercial);
 
         // Personne non exposante, statut resté sur « Disponible ».
         $this->book('L2-1', ['status' => 'available', 'holder_type' => 'external', 'exhibitor_name' => 'Atlas Froid'])
@@ -154,7 +155,10 @@ class SlotBookingOnBehalfTest extends TestCase
         $commercial = $this->commercial();
         $pdf = fn () => UploadedFile::fake()->create('programme.pdf', 300, 'application/pdf');
 
-        $slot = $this->slot('C2-2'); // Media, réservé (non exposant)
+        $slot = $this->slot('C2-2');
+        $slot->update(['status' => SlotStatus::Reserved, 'exhibitor_name' => 'Media', 'commercial_id' => $commercial->id]);
+        $this->assertSame($commercial->id, (int) $slot->fresh()->commercial_id);
+        $this->assertTrue($commercial->can('uploadSupport', $slot->fresh()));
 
         $this->actingAs($commercial)
             ->post(route('commercial.slots.support.store', $slot), ['support' => $pdf(), 'slot_id' => $slot->id])
@@ -208,9 +212,7 @@ class SlotBookingOnBehalfTest extends TestCase
         $this->actingAs($this->commercial())
             ->get(route('commercial.slots.index'))
             ->assertOk()
-            ->assertSee('Réserver à la place de quelqu')
-            ->assertSee('Un exposant inscrit')
-            ->assertSee('Une autre personne')
-            ->assertSee('(non exposant)');
+            ->assertSee('Exposant inscrit')
+            ->assertSee('Société / contact externe');
     }
 }

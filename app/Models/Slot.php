@@ -18,6 +18,7 @@ class Slot extends Model
         'price_excl_tax',
         'status',
         'exhibitor_id',
+        'commercial_id',
         'exhibitor_name',
         'contact_name',
         'contact_email',
@@ -53,6 +54,11 @@ class Slot extends Model
     public function exhibitor(): BelongsTo
     {
         return $this->belongsTo(Exhibitor::class);
+    }
+
+    public function commercial(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'commercial_id');
     }
 
     public function scopeOrdered(Builder $query): Builder

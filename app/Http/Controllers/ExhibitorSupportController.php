@@ -32,22 +32,70 @@ class ExhibitorSupportController extends Controller
         );
     }
 
-    public function index(Request $request): View
-    {
-        $exhibitor = $this->profile($request);
+    
+public function index(Request $request): View
+{
+    $exhibitor = $request->user()
+        ->exhibitorProfile()
+        ->firstOrFail();
 
-        $tickets = SupportTicket::query()
-            ->where('exhibitor_id', $exhibitor->id)
-            ->withCount('messages')
-            ->latest()
-            ->paginate(10);
+    $allSlots = Slot::query()
+        ->with('space:id,type')
+        ->ordered()
+        ->get();
 
-        return view('exhibitor.support.index', [
-            'user' => $request->user(),
-            'exhibitor' => $exhibitor->load('commercial'),
-            'tickets' => $tickets,
+    $myRequests = $exhibitor->slotRequests()
+        ->with([
+            'firstChoice:id,code,date,start_time,end_time',
+            'secondChoice:id,code,date,start_time,end_time',
+            'assignedSlot:id,code',
+        ])
+        ->latest()
+        ->latest('id')
+        ->get();
+
+    $requestedSlotIds = $myRequests
+        ->where('status', SlotRequestStatus::Pending)
+        ->flatMap(fn ($slotRequest) => $slotRequest->choiceIds())
+        ->map(fn ($id) => (int) $id)
+        ->unique()
+        ->values()
+        ->all();
+
+    // Créneaux réellement disponibles, classés par espace.
+    $availableSlots = $allSlots
+        ->filter(function (Slot $slot) use ($requestedSlotIds) {
+            return $slot->status === \App\Enums\SlotStatus::Available
+                && ! in_array((int) $slot->id, $requestedSlotIds, true);
+        })
+        ->groupBy(fn (Slot $slot) => $slot->space->type->value);
+
+    $planning = collect(SpaceType::cases())
+        ->mapWithKeys(fn (SpaceType $type) => [
+            $type->value => $allSlots
+                ->filter(
+                    fn (Slot $slot) => $slot->space->type === $type
+                )
+                ->groupBy(
+                    fn (Slot $slot) => $slot->date->toDateString()
+                ),
         ]);
-    }
+
+    return view('exhibitor.slots.index', [
+        'user' => $request->user(),
+        'exhibitor' => $exhibitor,
+        'mySlots' => $exhibitor->slots()
+            ->with('space:id,type')
+            ->ordered()
+            ->get(),
+        'myRequests' => $myRequests,
+        'availableSlots' => $availableSlots,
+        'planning' => $planning,
+        'requestedSlotIds' => $requestedSlotIds,
+        'spaceTypes' => SpaceType::cases(),
+    ]);
+}
+
 
     public function store(Request $request): RedirectResponse
     {

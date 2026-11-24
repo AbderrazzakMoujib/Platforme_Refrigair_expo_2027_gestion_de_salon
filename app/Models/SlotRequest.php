@@ -6,6 +6,7 @@ use App\Enums\SlotRequestStatus;
 use App\Enums\SpaceType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SlotRequest extends Model
 {
@@ -56,6 +57,11 @@ class SlotRequest extends Model
     public function processor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(SlotRequestDecision::class);
     }
 
     /** Identifiants des créneaux proposés par l'exposant. */

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SalonController;
 use App\Http\Controllers\Admin\BadgeController;
+use App\Http\Controllers\Admin\ConferenceManagerController;
 use App\Http\Controllers\ExhibitorStandOptionsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\CommercialEquipmentRequestController;
 use App\Http\Controllers\CommercialEquipmentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
+use App\Http\Controllers\ResponsableConferenceController;
 
 
 Route::get('/', function () {
@@ -46,6 +48,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/commerciaux/{commercial}', [CommercialController::class, 'show'])->whereNumber('commercial')->name('commerciaux.show');
     Route::get('/commerciaux/{commercial}/edit', [CommercialController::class, 'edit'])->whereNumber('commercial')->name('commerciaux.edit');
     Route::put('/commerciaux/{commercial}', [CommercialController::class, 'update'])->whereNumber('commercial')->name('commerciaux.update');
+    Route::get('/responsables-conferences', [ConferenceManagerController::class, 'index'])->name('responsables-conferences.index');
+    Route::get('/responsables-conferences/create', [ConferenceManagerController::class, 'create'])->name('responsables-conferences.create');
+    Route::post('/responsables-conferences', [ConferenceManagerController::class, 'store'])->name('responsables-conferences.store');
+    Route::get('/responsables-conferences/{manager}/edit', [ConferenceManagerController::class, 'edit'])->whereNumber('manager')->name('responsables-conferences.edit');
+    Route::put('/responsables-conferences/{manager}', [ConferenceManagerController::class, 'update'])->whereNumber('manager')->name('responsables-conferences.update');
+    Route::put('/responsables-conferences/{manager}/password', [ConferenceManagerController::class, 'resetPassword'])->whereNumber('manager')->name('responsables-conferences.password');
+    Route::patch('/responsables-conferences/{manager}/access', [ConferenceManagerController::class, 'toggleAccess'])->whereNumber('manager')->name('responsables-conferences.access');
     Route::get('/exposants', [ExhibitorController::class, 'index'])
     ->name('exposants.index');
 
@@ -332,13 +341,24 @@ Route::patch(
         Route::post('/creneaux/{slot}/support', [\App\Http\Controllers\CommercialSlotController::class, 'uploadSupport'])->middleware('throttle:20,1')->whereNumber('slot')->name('slots.support.store');
 
         Route::get('/demandes', [\App\Http\Controllers\CommercialSlotRequestController::class, 'index'])->name('slot-requests.index');
-        Route::patch('/demandes/{slotRequest}/accepter', [\App\Http\Controllers\CommercialSlotRequestController::class, 'accept'])->whereNumber('slotRequest')->name('slot-requests.accept');
-        Route::patch('/demandes/{slotRequest}/refuser', [\App\Http\Controllers\CommercialSlotRequestController::class, 'reject'])->whereNumber('slotRequest')->name('slot-requests.reject');
+        Route::post('/demandes', [\App\Http\Controllers\CommercialSlotRequestController::class, 'store'])->middleware('throttle:10,1')->name('slot-requests.store');
 
         Route::get('/export/programme-{locale}.pdf', [\App\Http\Controllers\SlotExportController::class, 'pdf'])->whereIn('locale', ['fr', 'en'])->name('slots.export.pdf');
         Route::get('/export/creneaux.csv', [\App\Http\Controllers\SlotExportController::class, 'csv'])->name('slots.export.csv');
     });
 
+});
+
+Route::middleware(['auth', 'role:responsable_conferences'])->prefix('responsable-conferences')->name('responsable-conferences.')->group(function (): void {
+    Route::get('/', [ResponsableConferenceController::class, 'dashboard'])->name('dashboard');
+    Route::get('/planning', [ResponsableConferenceController::class, 'planning'])->name('planning');
+    Route::get('/demandes', [ResponsableConferenceController::class, 'requests'])->name('requests.index');
+    Route::get('/reservations-confirmees', [ResponsableConferenceController::class, 'confirmed'])->name('confirmed');
+    Route::patch('/demandes/{slotRequest}/accepter', [ResponsableConferenceController::class, 'accept'])->whereNumber('slotRequest')->name('requests.accept');
+    Route::patch('/demandes/{slotRequest}/refuser', [ResponsableConferenceController::class, 'reject'])->whereNumber('slotRequest')->name('requests.reject');
+    Route::get('/historique', [ResponsableConferenceController::class, 'history'])->name('history');
+    Route::get('/profil', [ResponsableConferenceController::class, 'profile'])->name('profile');
+    Route::put('/profil', [ResponsableConferenceController::class, 'updateProfile'])->name('profile.update');
 });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {

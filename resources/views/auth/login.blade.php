@@ -443,6 +443,12 @@
             color: #059669;
         }
 
+        .role-conferences {
+            background: #FFF7ED;
+            border-color: #FFEDD5;
+            color: #C2410C;
+        }
+
         .role-description {
             margin: 12px 0 0;
             font-size: 11px;
@@ -1114,6 +1120,17 @@
                             </svg>
 
                             <span>Exposant</span>
+
+                        </div>
+
+                        <div class="role-card role-conferences">
+
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="4" width="18" height="17" rx="2"/>
+                                <path d="M16 2v4M8 2v4M3 10h18M8 14h3M8 17h7"/>
+                            </svg>
+
+                            <span>Responsable Conférences</span>
 
                         </div>
 

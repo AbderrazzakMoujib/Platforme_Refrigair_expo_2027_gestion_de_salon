@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Slot;
 use App\Models\Space;
 use App\Support\SlotCatalog;
+use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,10 +22,7 @@ class SlotExportController extends Controller
 
         $data = [
             'locale' => $locale,
-            'days' => Slot::query()
-                ->with(['space:id,type,name', 'exhibitor:id,company_name'])
-                ->ordered()
-                ->get()
+            'days' => $this->visibleSlots($request)
                 ->groupBy(fn (Slot $slot) => $slot->date->toDateString()),
             'spaces' => Space::query()->orderBy('id')->get(),
             'rules' => SlotCatalog::rules($locale),
@@ -44,14 +42,11 @@ class SlotExportController extends Controller
         return response()->view('exports.slots-program', ['printable' => true] + $data);
     }
 
-    public function csv(): StreamedResponse
+    public function csv(Request $request): StreamedResponse
     {
         Gate::authorize('view', Slot::class);
 
-        $slots = Slot::query()
-            ->with(['space:id,type,name', 'exhibitor:id,company_name'])
-            ->ordered()
-            ->get();
+        $slots = $this->visibleSlots($request);
 
         return response()->streamDownload(function () use ($slots): void {
             $out = fopen('php://output', 'wb');
@@ -86,6 +81,43 @@ class SlotExportController extends Controller
         }, 'creneaux-conferences-lounge-'.now()->format('Y-m-d').'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /** Commercial exports have the same client visibility as the planning page. */
+    private function visibleSlots(Request $request): \Illuminate\Support\Collection
+    {
+        $slots = Slot::query()
+            ->with(['space:id,type,name', 'exhibitor:id,company_name,commercial_id'])
+            ->ordered()
+            ->get();
+
+        if ($request->user()->role !== UserRole::Commercial) {
+            return $slots;
+        }
+
+        return $slots->each(function (Slot $slot) use ($request): void {
+            $ownerId = $slot->exhibitor_id !== null
+                ? $slot->exhibitor?->commercial_id
+                : $slot->commercial_id;
+
+            if ($ownerId === $request->user()->id) {
+                return;
+            }
+
+            $slot->setRelation('exhibitor', null);
+            $slot->forceFill([
+                'exhibitor_name' => null,
+                'contact_name' => null,
+                'contact_email' => null,
+                'contact_phone' => null,
+                'title' => null,
+                'summary' => null,
+                'speakers' => null,
+                'notes' => null,
+                'support_path' => null,
+                'support_original_name' => null,
+            ]);
+        });
     }
 
     /**

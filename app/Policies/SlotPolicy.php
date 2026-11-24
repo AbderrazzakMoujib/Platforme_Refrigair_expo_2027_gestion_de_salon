@@ -22,12 +22,20 @@ class SlotPolicy
     public function view(User $user): bool
     {
         return $user->is_active
-            && in_array($user->role, [UserRole::Admin, UserRole::Commercial], true);
+            && in_array($user->role, [UserRole::Admin, UserRole::Commercial, UserRole::ResponsableConferences], true);
     }
 
     public function update(User $user, Slot $slot): bool
     {
-        return $this->manage($user);
+        if (! $this->manage($user)) {
+            return false;
+        }
+
+        if (! $slot->status->isTaken()) {
+            return true;
+        }
+
+        return $this->slotCommercialId($slot) === $user->id;
     }
 
     /**
@@ -38,13 +46,33 @@ class SlotPolicy
     public function uploadSupport(User $user, Slot $slot): bool
     {
         return $slot->status->isSold()
-            && ($this->manage($user) || $this->ownsSlot($user, $slot));
+            && ($this->commercialCanAccess($user, $slot) || $this->ownsSlot($user, $slot));
     }
 
     public function downloadSupport(User $user, Slot $slot): bool
     {
-        return $slot->support_path !== null
-            && ($this->view($user) || $this->ownsSlot($user, $slot));
+        if ($slot->support_path === null) {
+            return false;
+        }
+
+        return in_array($user->role, [UserRole::Admin, UserRole::ResponsableConferences], true)
+            ? $this->view($user)
+            : ($this->commercialCanAccess($user, $slot) || $this->ownsSlot($user, $slot));
+    }
+
+    private function commercialCanAccess(User $user, Slot $slot): bool
+    {
+        return $this->manage($user)
+            && $this->slotCommercialId($slot) === $user->id;
+    }
+
+    private function slotCommercialId(Slot $slot): ?int
+    {
+        if ($slot->exhibitor_id !== null) {
+            return $slot->exhibitor?->commercial_id;
+        }
+
+        return $slot->commercial_id === null ? null : (int) $slot->commercial_id;
     }
 
     private function ownsSlot(User $user, Slot $slot): bool

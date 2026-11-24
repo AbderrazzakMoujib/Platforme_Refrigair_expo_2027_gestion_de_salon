@@ -69,6 +69,7 @@ class AuthenticatedSessionController extends Controller
         return match ($value) {
             UserRole::Admin->value => 'admin.index',
             UserRole::Commercial->value => 'commercial.index',
+            UserRole::ResponsableConferences->value => 'responsable-conferences.dashboard',
             default => 'exposant.index',
         };
     }

@@ -22,9 +22,9 @@ class SlotSafeguardsTest extends TestCase
         Storage::fake('local');
         Notification::fake();
         $this->seedSlots();
-        $first = $this->exhibitor('ClimaTech');
-        $second = $this->exhibitor('FroidPlus');
         $commercial = $this->commercial();
+        $first = $this->exhibitor('ClimaTech', true, $commercial);
+        $second = $this->exhibitor('FroidPlus', true, $commercial);
         $slot = $this->slot('C2-1');
 
         $slot->update(['status' => SlotStatus::Reserved, 'exhibitor_id' => $first->id, 'support_reminder_sent_at' => now()]);
@@ -36,8 +36,8 @@ class SlotSafeguardsTest extends TestCase
         Storage::disk('local')->assertExists($oldPath);
 
         // Libération puis attribution à un autre exposant.
-        $this->actingAs($commercial)->put(route('commercial.slots.update', $slot), ['status' => 'available']);
-        $this->put(route('commercial.slots.update', $slot), ['status' => 'reserved', 'exhibitor_id' => $second->id]);
+        $this->actingAs($commercial)->put(route('commercial.slots.update', $slot), ['status' => 'available'])->assertSessionHasNoErrors();
+        $this->put(route('commercial.slots.update', $slot), ['status' => 'reserved', 'exhibitor_id' => $second->id])->assertSessionHasNoErrors();
 
         $slot->refresh();
         $this->assertSame($second->id, $slot->exhibitor_id);
@@ -85,6 +85,7 @@ class SlotSafeguardsTest extends TestCase
             'summary' => 'Résumé',
             'speakers' => 'Intervenant',
             'first_choice_slot_id' => $this->slot('C2-1')->id,
+            'second_choice_slot_id' => $this->slot('C2-2')->id,
         ];
 
         $this->actingAs($exhibitor->user);
@@ -103,14 +104,16 @@ class SlotSafeguardsTest extends TestCase
     public function test_csv_neutralises_formulas_typed_by_users(): void
     {
         $this->seedSlots();
+        $commercial = $this->commercial();
         $this->slot('C2-1')->update([
             'status' => SlotStatus::Reserved,
             'exhibitor_name' => 'Client',
+            'commercial_id' => $commercial->id,
             'title' => '=HYPERLINK("http://evil.test","Cliquez")',
             'speakers' => '+212 600 000 000',
         ]);
 
-        $content = $this->actingAs($this->commercial())
+        $content = $this->actingAs($commercial)
             ->get(route('commercial.slots.export.csv'))
             ->streamedContent();
 
