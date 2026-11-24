@@ -17,13 +17,10 @@ class CommercialSupportController extends Controller
         SupportTicket $ticket
     ): void {
         abort_unless(
-            (int) $ticket->commercial_id ===
-                (int) $request->user()->id,
+            (int) $ticket->commercial_id === (int) $request->user()->id,
             404
         );
 
-        // Le commercial doit toujours être
-        // responsable de l'exposant actuellement.
         abort_unless(
             $ticket->exhibitor()
                 ->where('commercial_id', $request->user()->id)
@@ -48,12 +45,13 @@ class CommercialSupportController extends Controller
 
         $tickets = SupportTicket::query()
             ->where('commercial_id', $commercial->id)
-            ->whereHas('exhibitor', function ($query) use ($commercial) {
-                $query->where(
+            ->whereHas(
+                'exhibitor',
+                fn ($query) => $query->where(
                     'commercial_id',
                     $commercial->id
-                );
-            })
+                )
+            )
             ->with('exhibitor:id,company_name')
             ->latest()
             ->paginate(10);
@@ -69,6 +67,10 @@ class CommercialSupportController extends Controller
         SupportTicket $ticket
     ): View {
         $this->owned($request, $ticket);
+
+        // Ouvrir un ticket marque les messages entrants comme lus.
+        // Le statut du ticket ne change pas.
+        $ticket->markIncomingMessagesAsReadByCommercial();
 
         $ticket->load([
             'exhibitor',
@@ -99,7 +101,7 @@ class CommercialSupportController extends Controller
             $request,
             $ticket,
             $validated
-        ) {
+        ): void {
             $lockedTicket = SupportTicket::query()
                 ->lockForUpdate()
                 ->findOrFail($ticket->id);
@@ -124,7 +126,6 @@ class CommercialSupportController extends Controller
 
         $ticket->refresh()->load('exhibitor.user');
 
-        // Notification à l'exposant.
         $ticket->exhibitor?->user?->notify(
             new SupportTicketNotification(
                 $ticket,
@@ -158,24 +159,20 @@ class CommercialSupportController extends Controller
         $changed = DB::transaction(function () use (
             $ticket,
             $validated
-        ) {
+        ): bool {
             $lockedTicket = SupportTicket::query()
                 ->lockForUpdate()
                 ->findOrFail($ticket->id);
 
-            if (
-                $lockedTicket->status ===
-                $validated['status']
-            ) {
+            if ($lockedTicket->status === $validated['status']) {
                 return false;
             }
 
             $lockedTicket->update([
                 'status' => $validated['status'],
-                'resolved_at' =>
-                    $validated['status'] === 'resolved'
-                        ? now()
-                        : null,
+                'resolved_at' => $validated['status'] === 'resolved'
+                    ? now()
+                    : null,
             ]);
 
             return true;
@@ -184,8 +181,6 @@ class CommercialSupportController extends Controller
         if ($changed) {
             $ticket->refresh()->load('exhibitor.user');
 
-            // Notification à l'exposant uniquement
-            // si le statut a réellement changé.
             $ticket->exhibitor?->user?->notify(
                 new SupportTicketNotification(
                     $ticket,

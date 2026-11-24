@@ -90,33 +90,32 @@
             :value="$fmt($exhibitorsCount)"
             icon="users"
             tone="blue"
-            :trend="$newExhibitorsThisMonth > 0 ? '↑ +'.$fmt($newExhibitorsThisMonth).' ce mois' : '= 0 ce mois'"
-            :trend-tone="$newExhibitorsThisMonth > 0 ? 'emerald' : 'slate'"
+            :trend="'+' . $fmt($newExhibitorsThisMonth) . ' ce mois'"
+            trend-tone="emerald"
         />
         <x-commercial.stat-card
             label="Demandes actives"
             :value="$fmt($activeTickets)"
             icon="inbox"
             tone="amber"
-            :trend="$newTicketsToday > 0 ? '↑ +'.$fmt($newTicketsToday).' aujourd\'hui' : '= 0 aujourd\'hui'"
-            :trend-tone="$newTicketsToday > 0 ? 'red' : 'slate'"
-            :description="$fmt($pendingTickets).' en attente de réponse'"
+            :trend="'+' . $fmt($newTicketsToday) . ' aujourd’hui'"
+            trend-tone="red"
         />
         <x-commercial.stat-card
             label="Demandes résolues"
             :value="$fmt($resolvedTickets)"
             icon="clipboard-check"
             tone="emerald"
-            :trend="$resolvedTicketsThisMonth > 0 ? '↑ +'.$fmt($resolvedTicketsThisMonth).' ce mois' : '= 0 ce mois'"
-            :trend-tone="$resolvedTicketsThisMonth > 0 ? 'emerald' : 'slate'"
+            :trend="'+' . $fmt($resolvedTicketsThisMonth) . ' ce mois'"
+            trend-tone="emerald"
         />
         <x-commercial.stat-card
             label="Notifications"
             :value="$fmt($unreadNotificationsCount)"
             icon="bell"
             tone="violet"
-            :trend="$unreadNotificationsCount > 0 ? 'Non lues' : 'Aucune non lue'"
-            :trend-tone="$unreadNotificationsCount > 0 ? 'violet' : 'slate'"
+            trend="Non lues"
+            trend-tone="violet"
         />
     </section>
 
