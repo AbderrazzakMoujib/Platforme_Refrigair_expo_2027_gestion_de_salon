@@ -46,6 +46,12 @@
             'active' => request()->routeIs('admin.demandes.*'),
         ],
         [
+            'label' => 'Conférences & Lounge',
+            'icon' => 'calendar',
+            'route' => 'admin.slots.index',
+            'active' => request()->routeIs('admin.slots.*'),
+        ],
+        [
             'label' => 'Statistiques',
             'icon' => 'chart',
             'route' => 'admin.statistiques.index',

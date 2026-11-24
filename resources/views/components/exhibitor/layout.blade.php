@@ -34,6 +34,12 @@
             'active' => request()->routeIs('exhibitor.requests.*'),
         ],
         [
+            'label' => 'Conférences & Lounge',
+            'icon' => 'calendar',
+            'url' => route('exhibitor.slots.index'),
+            'active' => request()->routeIs('exhibitor.slots.*'),
+        ],
+        [
             'label' => 'Assistance',
             'icon' => 'headset',
             'url' => route('exhibitor.support.index'),
@@ -219,6 +225,24 @@
                                 >
                                     <rect x="5" y="3" width="14" height="18" rx="2"/>
                                     <path d="M9 8h6M9 12h6M9 16h4"/>
+                                </svg>
+
+                                @break
+
+                            @case('calendar')
+
+                                <svg
+                                    class="size-5"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <rect x="3" y="5" width="18" height="16" rx="2"/>
+                                    <path d="M16 3v4M8 3v4M3 10h18M8 14h3M8 17h6"/>
                                 </svg>
 
                                 @break

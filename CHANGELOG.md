@@ -1,5 +1,146 @@
 # REFRIGAIR EXPO 2027 — Journal des évolutions
 
+## Mise à jour : Conférences & Lounge des Technologies
+
+**Projet :** Plateforme de gestion de salon — REFRIGAIR EXPO 2027  
+**Framework :** Laravel 13  
+**Branche :** `feature/conferences-lounge`  
+**Objectif :** Vendre et gérer les créneaux de présentation (salle de conférence et Lounge des Technologies), suivre le chiffre d'affaires et automatiser les e-mails aux intervenants.
+
+### Règles métier
+
+| Espace | Jours | Créneaux | Prix |
+|---|---|---|---|
+| Salle de conférence (`conference`) | mer. 3 et jeu. 4 février 2027 | 1 h (45 min présentation + 10 min Q&R + 5 min changement), pause 12:30–14:00. Codes `C2-1…C2-6`, `C3-1…C3-6` | 1 500 € HT |
+| Lounge des Technologies (`lounge`) | du 2 au 4 février 2027 | 2 h, en continu. Codes `L1-1…L1-3`, `L2-1…L2-4`, `L3-1…L3-4` | 1 000 € HT |
+
+- 23 créneaux au total. Statuts : `available` (disponible), `option`, `reserved` (réservé), `paid` (payé).
+- **Vendu = réservé + payé.** L'option bloque le créneau mais n'est comptée ni dans les ventes ni dans le CA.
+- **CA HT** = prix des créneaux vendus ; **CA encaissé** = prix des créneaux payés.
+- Un créneau a **un seul titulaire** : un exposant inscrit (`exhibitor_id`) **ou** une personne / société non exposante (`exhibitor_name` + coordonnées).
+- Pas de double réservation : un créneau pris doit être repassé en « disponible » avant d'être donné à quelqu'un d'autre.
+- L'exposant demande **un seul créneau** par demande.
+- **Rôles :** le **commercial** gère tout le module ; l'**admin** consulte seulement (planning, CA, exports, supports) ; l'**exposant** fait ses demandes et envoie son support.
+
+---
+
+## 1. Base de données
+
+**Fichiers :**
+- `database/migrations/2026_11_23_100000_create_spaces_table.php` — les 2 espaces (`type` unique : conference / lounge).
+- `database/migrations/2026_11_23_100001_create_slots_table.php` — les créneaux : code unique, date, horaires, prix HT, statut, titulaire, titre / résumé / intervenants, support, notes, dates d'envoi des rappels. Contrainte unique `(space_id, date, start_time)` : deux créneaux ne peuvent pas se chevaucher dans un même espace.
+- `database/migrations/2026_11_23_100002_create_slot_requests_table.php` — les demandes des exposants (statut `pending` / `accepted` / `rejected`, motif de refus, créneau attribué, qui a traité). La colonne `second_choice_slot_id` existe mais n'est plus utilisée (une seule demande = un seul créneau).
+- `database/migrations/2026_11_24_100000_add_contact_fields_to_slots_table.php` — `contact_name`, `contact_email`, `contact_phone` pour un titulaire non exposant.
+
+**Modèles et enums :**
+- `app/Models/Space.php`, `app/Models/Slot.php`, `app/Models/SlotRequest.php`.
+- `app/Enums/SpaceType.php`, `app/Enums/SlotStatus.php` (libellés FR/EN, couleurs, `isTaken()`, `isSold()`), `app/Enums/SlotRequestStatus.php`.
+- `app/Models/Exhibitor.php` — **modifié** : ajout des relations `slots()` et `slotRequests()`.
+
+## 2. Référentiel et données initiales
+
+- `app/Support/SlotCatalog.php` — **source unique** des horaires, codes, prix, réservations initiales et règles affichées dans le PDF. Pour changer un horaire ou un prix, c'est ici.
+- `database/seeders/ConferenceLoungeSeeder.php` — crée les 2 espaces, les 23 créneaux et les 13 réservations actuelles (Media, Ebm Papst, Daikoo, Froidel, FIRST THERM, RES, AMPF). Si l'exposant existe en base (comparaison sans casse), il est relié ; sinon son nom est stocké dans `exhibitor_name`. **Relançable sans risque** : ne crée pas de doublons et n'écrase pas les modifications faites dans l'interface.
+- `database/seeders/DatabaseSeeder.php` — **modifié** : appelle `ConferenceLoungeSeeder`.
+
+## 3. Logique métier
+
+- `app/Services/SlotService.php` — le cœur du module, utilisé par tous les contrôleurs, le tableau de bord et les tests :
+  - `update()` : attribution / changement de statut dans une transaction avec `lockForUpdate` (empêche deux réservations simultanées). Si le titulaire change ou si le créneau est libéré, le support et l'historique des rappels de l'ancien titulaire sont effacés (fichier compris).
+  - `accept()` / `reject()` : traitement des demandes des exposants.
+  - `stats()` : créneaux vendus, options, CA HT, CA encaissé et taux de remplissage, au total, par espace et par jour.
+  - `storeSupport()` : enregistrement du support (disque privé `local`, dossier `slot-supports/`).
+  - `notifyHolder()` : prévient le titulaire (compte exposant, sinon e-mail de la fiche exposant, sinon e-mail du contact externe).
+- `app/Policies/SlotPolicy.php` — `manage` (commercial), `view` (admin + commercial), `uploadSupport` (titulaire exposant ou commercial, créneau réservé / payé), `downloadSupport`.
+- `app/Policies/SlotRequestPolicy.php` — `create` (exposant), `process` (commercial, demande en attente).
+- `app/Http/Requests/Slots/` — validation par Form Requests :
+  - `UpdateSlotForm` — planning commercial. Gère « Réservé pour : exposant inscrit / autre personne ». Sur un créneau libre, si un titulaire est saisi alors que le statut est resté sur « Disponible », le créneau passe automatiquement en « Réservé ».
+  - `SubmitSlotRequestForm` — demande de l'exposant : créneau libre, du bon espace, pas de doublon en attente.
+  - `AcceptSlotRequestForm`, `RejectSlotRequestForm` (motif obligatoire), `UploadSlotSupportForm` (PPT / PPTX / PDF, 20 Mo max).
+- `app/Rules/MaxLines.php` — règle « 5 lignes maximum » pour le résumé.
+
+## 4. Espace Commercial
+
+**Pages :** `/commercial/conferences` (planning) et `/commercial/conferences/demandes`
+
+**Fichiers :**
+- `app/Http/Controllers/CommercialSlotController.php` + `resources/views/commercial/slots/index.blade.php` — planning visuel par jour et par espace, une couleur par statut. Un clic ouvre une fenêtre pour :
+  - réserver pour **un exposant inscrit** (par exemple s'il n'a pas réussi à remplir le formulaire) ou pour **une autre personne non exposante** (nom / société, contact, e-mail, téléphone) ;
+  - changer le statut (option, réservé, payé, disponible) ;
+  - saisir titre, résumé, intervenants et notes internes ;
+  - **déposer le support à la place du titulaire**.
+- `app/Http/Controllers/CommercialSlotRequestController.php` + `resources/views/commercial/slots/requests.blade.php` — liste des demandes avec filtres ; accepter (attribue le créneau demandé) ou refuser avec motif.
+- `resources/views/components/commercial/layout.blade.php` — **modifié** : entrée de menu « Conférences & Lounge ».
+
+## 5. Tableau de bord commercial
+
+- `app/Http/Controllers/CommercialDashboardController.php` — **modifié** : ajout de `slotStats` (une ligne).
+- `resources/views/commercial/dashboard.blade.php` — **modifié** : nouvelle section « Conférences & Lounge des Technologies » (vendus / total par espace, CA HT, CA encaissé, remplissage par jour). Les autres sections sont inchangées. Les chiffres sont **globaux** au salon.
+
+## 6. Espace Administration (consultation)
+
+**Page :** `/admin/conferences`
+
+- `app/Http/Controllers/Admin/SlotController.php` + `resources/views/admin/slots/index.blade.php` — indicateurs, ventes par espace, remplissage par jour, tableau **« Qui a réservé ? »** (par titulaire : codes, CA, encaissé), détail des créneaux avec filtres (recherche, espace, jour, statut), coordonnées des titulaires non exposants, téléchargement des supports. **Aucune modification possible** depuis l'admin.
+- `resources/views/components/admin/layout.blade.php` — **modifié** : entrée de menu.
+
+## 7. Espace Exposant
+
+**Page :** `/exposant/conferences`
+
+- `app/Http/Controllers/ExhibitorSlotController.php` + `resources/views/exhibitor/slots/index.blade.php` — présentation des deux offres (déroulé de l'heure, ce qui est inclus au lounge, horaires, prix), « Comment ça marche ? » en 5 étapes, **Mes créneaux** (suivi Confirmé → Support → Jour J, date limite d'envoi, envoi du support, heure d'arrivée), **Mes demandes**, et réservation guidée avec planning cliquable.
+- **Confidentialité :** l'exposant voit « Réservé » mais **jamais le nom** des autres exposants (les noms ne sont pas envoyés à la vue).
+- `resources/views/components/exhibitor/layout.blade.php` — **modifié** : entrée de menu + icône `calendar`.
+
+## 8. Exports
+
+- `app/Http/Controllers/SlotExportController.php` + `resources/views/exports/slots-program.blade.php`
+  - **Programme PDF FR / EN** (statuts « Réservé / Disponible » et « Booked / Available », prix HT, règles de réservation). Utilise `barryvdh/laravel-dompdf` **s'il est installé** ; sinon, page HTML imprimable avec le même contenu.
+  - **CSV** compatible Excel (BOM UTF-8, séparateur `;`), avec protection contre l'injection de formules (`=`, `+`, `-`, `@`).
+- Accessibles au commercial (`/commercial/conferences/export/...`) et à l'admin (`/admin/conferences/export/...`).
+
+## 9. Notifications et rappels
+
+- `app/Notifications/SlotNotification.php` — base commune : canaux `mail` + `database` (cloche), **en file d'attente** (`ShouldQueue`). Pour un titulaire non exposant : e-mail seul, sans lien vers l'espace exposant.
+- `SlotConfirmedNotification` (créneau confirmé), `SlotSupportReminderNotification` (rappel J-7 si le support n'est pas envoyé), `SlotEveReminderNotification` (la veille : venir 15 min avant pour le test technique), `SlotRequestRejectedNotification` (demande refusée + motif).
+- `app/Console/Commands/SendSlotReminders.php` — commande `slots:send-reminders`. Chaque rappel n'est envoyé qu'**une fois** (`support_reminder_sent_at`, `eve_reminder_sent_at`).
+- `routes/console.php` — **modifié** : la commande est planifiée tous les jours à 09:00 (heure de Casablanca).
+- `app/Http/Controllers/AccountNotificationController.php` — **modifié** : un clic sur une notification de type `conference` ouvre la page Conférences & Lounge de l'exposant.
+
+## 10. Routes
+
+- `routes/web.php` — **modifié** : routes `commercial.slots.*`, `commercial.slot-requests.*`, `admin.slots.*` et `exhibitor.slots.*`. Ouvrir directement l'URL du formulaire exposant (`GET /exposant/conferences/demandes`) redirige vers la page au lieu d'une erreur 405.
+
+## 11. Tests
+
+`tests/Concerns/SlotFixtures.php` (helpers partagés) et 7 fichiers dans `tests/Feature/` — **44 tests** (suite complète : 122 tests au vert) :
+
+- `SlotGenerationTest` — génération des créneaux, horaires, prix, réservations initiales, seeder relançable.
+- `SlotDoubleBookingTest` — impossibilité de double réservation (planning, demandes, contraintes en base).
+- `SlotRevenueTest` — calcul du CA (option exclue, payé = encaissé), remplissage par jour, tableau de bord.
+- `SlotWorkflowTest` — parcours exposant → commercial, rôles, support, rappels, exports.
+- `SlotSafeguardsTest` — changement de titulaire, doublons, CSV, ouverture des notifications.
+- `SlotBookingOnBehalfTest` — réservation par le commercial pour un exposant ou une personne non exposante.
+- `AdminSlotsTest` — consultation admin et lecture seule.
+
+### Mise en route
+
+```bash
+php artisan migrate
+php artisan db:seed --class=ConferenceLoungeSeeder
+npm run build
+composer require barryvdh/laravel-dompdf   # facultatif : vrai PDF
+```
+
+### Points d'attention
+
+- **Lancer les migrations avant d'ouvrir le tableau de bord commercial** : il lit la table `slots`.
+- Les e-mails sont **en file d'attente** : il faut `php artisan queue:work` (déjà inclus dans `composer dev`).
+- Les rappels nécessitent le planificateur en production : `php artisan schedule:run` chaque minute (cron).
+- `config/app.php` est en `UTC` : les heures affichées ont 1 h de décalage avec Casablanca (réglage global non modifié).
+
+---
+
 ## Mise à jour : Gestion des équipements, demandes et notifications
 
 **Projet :** Plateforme de gestion de salon — REFRIGAIR EXPO 2027  
