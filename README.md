@@ -1,59 +1,69 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# REFRIGAIR EXPO 2027
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plateforme de gestion du salon REFRIGAIR EXPO 2027, développée avec Laravel 13, PHP 8.3+, Blade, Tailwind CSS, Vite et MariaDB/MySQL.
 
-## About Laravel
+## Modules et rôles
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Administrateur** : comptes, commerciaux, exposants, badges et quotas, catalogue et demandes d'équipements, salons, paramètres et supervision.
+- **Commercial** : ses exposants, leurs badges, équipements et réservations Conférences & Lounge. Les données liées aux autres commerciaux sont filtrées côté serveur.
+- **Exposant** : son profil, ses badges, demandes d'équipements, réservations et supports.
+- **Responsable Conférences** (`responsable_conferences`) : planning, demandes, décisions, historique et profil Conférences & Lounge.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Les accès sont protégés par `auth`, le middleware de rôle et, pour les ressources propriétaires, des requêtes limitées au propriétaire. Les QR de badges demandent une session Admin ou celle du Commercial responsable de l'exposant.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Architecture applicative
 
-## Learning Laravel
+- Routes web : `routes/web.php`; tâches planifiées : `routes/console.php`.
+- Modèles et règles : `app/Models`, `app/Policies`, `app/Services`.
+- Notifications : `app/Notifications`; emails : `resources/views/emails`.
+- Fichiers privés : disque `local`; photos, logos et images publiques : disque `public` via `storage:link`.
+- Vues Blade : `resources/views`; assets Vite : `resources/js`, `resources/css`.
+- Migrations et seeders : `database/migrations`, `database/seeders`.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Installation locale
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Prérequis : PHP 8.3+, Composer, Node.js/npm et MariaDB/MySQL ou SQLite.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+copy .env.example .env   # PowerShell; sous Unix : cp .env.example .env
+php artisan key:generate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Configurez ensuite `.env` pour votre environnement local (connexion DB, URL, mail), puis :
 
-## Contributing
+```bash
+php artisan migrate
+php artisan db:seed
+php artisan storage:link
+npm install
+npm run build
+php artisan serve
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+En développement/local, le seeder principal conserve l'utilisateur de démonstration `test@example.com` avec le mot de passe de factory. **Il est omis en production**. N'utilisez pas cette identité en production et créez les comptes réels depuis les parcours d'administration. `ConferenceLoungeSeeder` installe les espaces et 23 créneaux de façon idempotente sans écraser les créneaux existants. Vérifiez les données métier avant toute exécution de seeders sur une base déjà utilisée.
 
-## Code of Conduct
+Ne lancez jamais `migrate:fresh`, `db:wipe` ou une commande de reset sur une base contenant des données à préserver.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Tests et frontend
 
-## Security Vulnerabilities
+```bash
+php artisan test
+npm run build
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Les tests utilisent SQLite en mémoire (voir `phpunit.xml`) et ne doivent pas se connecter à la base configurée dans `.env`.
 
-## License
+## Notifications et tâches planifiées
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# Platforme_Refrigair_expo_2027_gestion_de_salon
+Certaines notifications de créneaux implémentent `ShouldQueue`. En production, utiliser un backend de queue durable (par défaut Laravel `database`) et faire tourner un worker supervisé :
+
+```bash
+php artisan queue:work --sleep=3 --tries=3 --timeout=60
+```
+
+Le scheduler lance `slots:send-reminders` chaque jour à 09:00 dans `Africa/Casablanca` : rappel du support à partir de J-7 jusqu'à la veille de l'ouverture du 2 février 2027, et rappel de veille pour les créneaux vendus du lendemain. Les colonnes d'envoi évitent les renvois après mise en queue. Les workers réessaient les notifications; si elles finissent dans `failed_jobs`, l'administrateur doit les inspecter et utiliser `php artisan queue:retry <id>` après correction de la cause.
+
+## Production
+
+Consultez [la procédure de déploiement](docs/DEPLOIEMENT_PRODUCTION.md). Elle couvre les variables, le serveur web/HTTPS, les migrations, le cache, les queues, le cron, les fichiers privés et les sauvegardes. Cette documentation ne remplace pas la configuration réelle du serveur, le test SMTP, la restauration d'une sauvegarde et le contrôle d'accès avant ouverture au public.

@@ -155,10 +155,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     BadgeController::class, 'export',
      ])->name('badges.export');
 
-    Route::get('/badges/verify/{token}', [
-    BadgeController::class, 'verify',
-     ])->whereUuid('token')->name('badges.verify');
-
     Route::get('/badges', [
     BadgeController::class, 'index',
      ])->name('badges.index');
@@ -216,6 +212,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/conferences/export/creneaux.csv', [\App\Http\Controllers\SlotExportController::class, 'csv'])->name('slots.export.csv');
 
 });
+
+// Vérification réservée à l'Admin et au Commercial propriétaire de l'exposant.
+// Le token seul ne permet jamais d'accéder aux données personnelles.
+Route::get('/admin/badges/verify/{token}', [BadgeController::class, 'verify'])
+    ->middleware(['auth', 'role:admin,commercial'])
+    ->whereUuid('token')
+    ->name('admin.badges.verify');
 
 
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {

@@ -17,10 +17,14 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Le compte de démonstration reste réservé aux environnements locaux/tests.
+        // Une initialisation production ne doit jamais créer un identifiant connu.
+        if (! app()->environment('production')) {
+            User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
 
         $this->call(ConferenceLoungeSeeder::class);
     }

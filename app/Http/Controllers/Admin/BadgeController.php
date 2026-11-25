@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Badge;
 use App\Models\BadgeActivityLog;
@@ -526,11 +527,32 @@ class BadgeController extends Controller
         Request $request,
         string $token
     ): View {
-
+        $user = $request->user();
         $badge = Badge::query()
             ->with('exhibitor')
             ->where('qr_token', $token)
             ->firstOrFail();
+
+        $role = $user->role instanceof UserRole
+            ? $user->role->value
+            : $user->role;
+
+        if ($role === 'commercial') {
+            abort_unless(
+                (int) $badge->exhibitor->commercial_id === (int) $user->id,
+                404
+            );
+
+            return view('commercial.badges.verify', [
+                'commercial' => $user,
+                'commercialInitials' => collect(preg_split('/\s+/', trim($user->name)))
+                    ->filter()
+                    ->take(2)
+                    ->map(fn (string $part) => mb_strtoupper(mb_substr($part, 0, 1)))
+                    ->implode('') ?: 'C',
+                'badge' => $badge,
+            ]);
+        }
 
         return view('admin.badges.verify', [
 

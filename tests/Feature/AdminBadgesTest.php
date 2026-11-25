@@ -222,6 +222,65 @@ class AdminBadgesTest extends TestCase
             ->assertDownload();
     }
 
+    public function test_badge_verification_handles_inactive_and_unknown_tokens(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $badge = $this->createBadge($this->createExhibitor());
+        $badge->update(['status' => 'inactive']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.badges.verify', $badge->qr_token))
+            ->assertOk()
+            ->assertSee('Badge désactivé')
+            ->assertDontSee('Badge valide');
+
+        $this->get(route('admin.badges.verify', (string) \Illuminate\Support\Str::uuid()))
+            ->assertNotFound();
+    }
+
+    public function test_commercial_can_verify_only_badges_of_its_exhibitors(): void
+    {
+        $commercial = User::factory()->create(['role' => 'commercial']);
+        $ownBadge = $this->createBadge($this->createExhibitorFor($commercial));
+        $otherBadge = $this->createBadge($this->createExhibitor());
+
+        $this->actingAs($commercial)
+            ->get(route('admin.badges.verify', $ownBadge->qr_token))
+            ->assertOk()
+            ->assertSee('Badge valide')
+            ->assertSee('Ahmed Benali');
+
+        $this->get(route('admin.badges.verify', $otherBadge->qr_token))
+            ->assertNotFound();
+    }
+
+    public function test_non_admin_and_non_owning_commercial_cannot_verify_badges(): void
+    {
+        $exhibitorUser = User::factory()->create(['role' => 'exposant']);
+        $badge = $this->createBadge($this->createExhibitor());
+
+        $this->actingAs($exhibitorUser)
+            ->get(route('admin.badges.verify', $badge->qr_token))
+            ->assertForbidden();
+
+        auth()->logout();
+        $this->get(route('admin.badges.verify', $badge->qr_token))
+            ->assertRedirect(route('login'));
+    }
+
+    private function createExhibitorFor(User $commercial, int $quota = 3): Exhibitor
+    {
+        return $commercial->exhibitors()->create([
+            'company_name' => 'Atlas Froid',
+            'contact_name' => 'Ahmed Benali',
+            'email' => 'contact-atlas@example.test',
+            'phone' => '0600000000',
+            'stand_number' => 'A12',
+            'area_sqm' => 24,
+            'authorized_badges' => $quota,
+        ]);
+    }
+
     public function test_commercial_cannot_access_admin_badges(): void
     {
         $commercial = User::factory()->create([
