@@ -9,8 +9,7 @@
             <label class="block text-sm font-semibold text-[#0F2347]">Nom<input name="name" required maxlength="255" value="{{ old('name', $manager->name) }}" class="mt-1 w-full rounded-xl border-slate-300"></label>
             <label class="block text-sm font-semibold text-[#0F2347]">Adresse e-mail<input name="email" required type="email" maxlength="255" value="{{ old('email', $manager->email) }}" class="mt-1 w-full rounded-xl border-slate-300"></label>
             @unless ($editing)
-                <label class="block text-sm font-semibold text-[#0F2347]">Mot de passe initial<input name="password" required type="password" minlength="8" autocomplete="new-password" class="mt-1 w-full rounded-xl border-slate-300"></label>
-                <label class="block text-sm font-semibold text-[#0F2347]">Confirmation<input name="password_confirmation" required type="password" minlength="8" autocomplete="new-password" class="mt-1 w-full rounded-xl border-slate-300"></label>
+                <p class="rounded-xl bg-blue-50 p-4 text-sm text-blue-900 sm:col-span-2">Un courriel sécurisé invitera le responsable à choisir son mot de passe. Aucun mot de passe initial ne sera envoyé.</p>
             @endunless
             <div class="flex justify-end gap-3"><a href="{{ route('admin.responsables-conferences.index') }}" class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold">Annuler</a><button class="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white">{{ $editing ? 'Enregistrer' : 'Créer le compte' }}</button></div>
         </form>

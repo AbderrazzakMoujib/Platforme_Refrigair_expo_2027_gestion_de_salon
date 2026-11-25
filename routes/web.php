@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\CommercialInvitationController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\Admin\CommercialController;
 use App\Http\Controllers\Admin\ExhibitorController;
@@ -41,6 +42,13 @@ Route::middleware(['active.account', 'guest'])->group(function (): void {
     Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('password.update');
 });
 
+Route::middleware(['throttle:10,1'])->group(function (): void {
+    Route::get('/account/activation/{token}', [CommercialInvitationController::class, 'show'])
+        ->whereAlphaNumeric('token')->name('account-activation.show');
+    Route::post('/account/activation/{token}', [CommercialInvitationController::class, 'accept'])
+        ->whereAlphaNumeric('token')->name('account-activation.accept');
+});
+
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 
 Route::middleware(['auth', 'role:admin'])->get('/admin', AdminDashboardController::class)->name('admin.index');
@@ -51,6 +59,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/commerciaux/{commercial}', [CommercialController::class, 'show'])->whereNumber('commercial')->name('commerciaux.show');
     Route::get('/commerciaux/{commercial}/edit', [CommercialController::class, 'edit'])->whereNumber('commercial')->name('commerciaux.edit');
     Route::put('/commerciaux/{commercial}', [CommercialController::class, 'update'])->whereNumber('commercial')->name('commerciaux.update');
+    Route::post('/commerciaux/{commercial}/invitation', [CommercialController::class, 'resendInvitation'])->whereNumber('commercial')->name('commerciaux.invitation');
     Route::get('/responsables-conferences', [ConferenceManagerController::class, 'index'])->name('responsables-conferences.index');
     Route::get('/responsables-conferences/create', [ConferenceManagerController::class, 'create'])->name('responsables-conferences.create');
     Route::post('/responsables-conferences', [ConferenceManagerController::class, 'store'])->name('responsables-conferences.store');
@@ -58,6 +67,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/responsables-conferences/{manager}', [ConferenceManagerController::class, 'update'])->whereNumber('manager')->name('responsables-conferences.update');
     Route::put('/responsables-conferences/{manager}/password', [ConferenceManagerController::class, 'resetPassword'])->whereNumber('manager')->name('responsables-conferences.password');
     Route::patch('/responsables-conferences/{manager}/access', [ConferenceManagerController::class, 'toggleAccess'])->whereNumber('manager')->name('responsables-conferences.access');
+    Route::post('/responsables-conferences/{manager}/invitation', [ConferenceManagerController::class, 'resendInvitation'])->whereNumber('manager')->name('responsables-conferences.invitation');
     Route::get('/exposants', [ExhibitorController::class, 'index'])
     ->name('exposants.index');
 
@@ -232,6 +242,7 @@ Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::get('/commercial/exposants/{exhibitor}/edit', [CommercialExhibitorController::class, 'edit'])->whereNumber('exhibitor')->name('commercial.exhibitors.edit');
     Route::put('/commercial/exposants/{exhibitor}', [CommercialExhibitorController::class, 'update'])->whereNumber('exhibitor')->name('commercial.exhibitors.update');
     Route::post('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'createAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access');
+    Route::post('/commercial/exposants/{exhibitor}/invitation', [CommercialExhibitorController::class, 'resendInvitation'])->whereNumber('exhibitor')->name('commercial.exhibitors.invitation');
     Route::patch('/commercial/exposants/{exhibitor}/access', [CommercialExhibitorController::class, 'toggleAccess'])->whereNumber('exhibitor')->name('commercial.exhibitors.access.toggle');
 
     // Badges des exposants du commercial

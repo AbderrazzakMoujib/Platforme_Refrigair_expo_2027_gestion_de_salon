@@ -486,7 +486,7 @@
 
                 {{-- ACCOUNT CREATION --}}
 
-                @if (! $isEdit)
+                @if (false && ! $isEdit)
 
                     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
@@ -584,6 +584,10 @@
             </div>
 
             {{-- RIGHT COLUMN --}}
+
+            @if (! $isEdit)
+                <p class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">Après la création du dossier, l’exposant recevra une invitation par courriel et choisira lui-même son mot de passe.</p>
+            @endif
 
             <aside class="min-w-0 space-y-6">
 
@@ -1027,4 +1031,4 @@
         })();
     </script>
 
-</x-commercial.layout>  
+</x-commercial.layout>

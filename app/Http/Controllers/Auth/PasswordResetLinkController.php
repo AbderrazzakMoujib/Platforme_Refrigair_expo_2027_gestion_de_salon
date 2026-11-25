@@ -25,6 +25,7 @@ class PasswordResetLinkController extends Controller
         $isActiveUser = User::query()
             ->where('email', $request->input('email'))
             ->where('is_active', true)
+            ->whereNotNull('password')
             ->exists();
 
         if ($isActiveUser) {

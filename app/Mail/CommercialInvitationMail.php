@@ -13,15 +13,28 @@ class CommercialInvitationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public User $commercial, public string $activationUrl) {}
+    public function __construct(
+        public User $user,
+        public string $role,
+        public string $activationUrl,
+    ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Invitation à activer votre accès Refrigair Expo 2027');
+        $subject = match ($this->role) {
+            'commercial' => 'REFRIGAIR EXPO 2027 | Activation de votre espace Commercial',
+            'responsable_conferences' => 'REFRIGAIR EXPO 2027 | Activation de votre espace Responsable Conférences',
+            default => 'REFRIGAIR EXPO 2027 | Activez votre espace exposant',
+        };
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content
     {
-        return new Content(view: 'emails.commercial-invitation');
+        return new Content(
+            view: 'emails.account-invitation',
+            text: 'emails.account-invitation-text',
+        );
     }
 }

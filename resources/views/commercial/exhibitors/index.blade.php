@@ -198,12 +198,10 @@
 
                                 $status = ! $exhibitor->user
                                     ? 'Sans accès'
-                                    : ($exhibitor->user->is_active
-                                        ? 'Accès actif'
-                                        : 'Désactivé');
+                                    : \App\Models\CommercialInvitation::statusFor($exhibitor->user);
 
                                 $statusClass = match ($status) {
-                                    'Accès actif' => 'bg-emerald-50 text-emerald-700',
+                                    'Actif', 'Activé', 'Invitation envoyée' => 'bg-emerald-50 text-emerald-700',
                                     'Désactivé' => 'bg-red-50 text-red-700',
                                     default => 'bg-amber-50 text-amber-700',
                                 };

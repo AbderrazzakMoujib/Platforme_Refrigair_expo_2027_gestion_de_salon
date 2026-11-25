@@ -175,10 +175,11 @@
                             <td class="px-5 py-4">
                                 <span @class([
                                     'inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold',
-                                    'bg-emerald-50 text-emerald-700' => $commercial->is_active,
+                                    'bg-emerald-50 text-emerald-700' => $commercial->is_active && $commercial->password !== null,
+                                    'bg-amber-50 text-amber-800' => $commercial->is_active && $commercial->password === null,
                                     'bg-red-50 text-red-700' => !$commercial->is_active,
                                 ])>
-                                    {{ $commercial->is_active ? 'Actif' : 'Inactif' }}
+                                    {{ \App\Models\CommercialInvitation::statusFor($commercial) }}
                                 </span>
                             </td>
 
@@ -196,6 +197,10 @@
                                        class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                                         Modifier
                                     </a>
+
+                                    @if ($commercial->password === null && $commercial->is_active)
+                                        <form method="POST" action="{{ route('admin.commerciaux.invitation', $commercial) }}">@csrf<button class="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">Renvoyer l’invitation</button></form>
+                                    @endif
 
                                 </div>
                             </td>

@@ -13,6 +13,9 @@
             {{ session('status') }}
         </div>
     @endif
+    @if (session('warning'))
+        <div role="alert" class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{{ session('warning') }}</div>
+    @endif
 
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
@@ -103,6 +106,9 @@
                     <p class="mt-2 font-semibold text-slate-800">
                         {{ $accessStatus }}
                     </p>
+                    @if ($commercial->password === null && $commercial->is_active)
+                        <form method="POST" action="{{ route('admin.commerciaux.invitation', $commercial) }}" class="mt-3">@csrf<button class="text-sm font-semibold text-blue-700">Renvoyer l’invitation</button></form>
+                    @endif
                 </div>
 
             </div>

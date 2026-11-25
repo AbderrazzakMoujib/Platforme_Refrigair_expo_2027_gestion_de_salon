@@ -41,6 +41,16 @@ class User extends Authenticatable
         return $this->hasOne(Exhibitor::class);
     }
 
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(CommercialInvitation::class);
+    }
+
+    public function latestInvitation(): HasOne
+    {
+        return $this->hasOne(CommercialInvitation::class)->latestOfMany();
+    }
+
     public function getProfilePhotoUrlAttribute(): ?string
     {
         return $this->profile_photo

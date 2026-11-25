@@ -6,12 +6,14 @@ use App\Models\User;
 use App\Models\Exhibitor;
 use App\Models\Equipment;
 use App\Models\EquipmentRequest;
+use App\Mail\CommercialInvitationMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -227,6 +229,7 @@ class AuthenticationTest extends TestCase
 
     public function test_exhibitor_account_creation_login_linkage_deactivation_and_dashboard_isolation(): void
     {
+        Mail::fake();
         $commercial = User::factory()->create(['role' => 'commercial']);
 
         $payload = [
@@ -237,8 +240,6 @@ class AuthenticationTest extends TestCase
             'stand_number' => 'D4',
             'area_sqm' => 18,
             'authorized_badges' => 4,
-            'password' => 'secret-pass-123',
-            'password_confirmation' => 'secret-pass-123',
         ];
 
         $this->actingAs($commercial)
@@ -253,16 +254,26 @@ class AuthenticationTest extends TestCase
         $account = $exhibitor->user;
 
         $this->assertSame('exposant', $account->role->value);
-        $this->assertTrue(Hash::check(
-            $payload['password'],
-            $account->password
-        ));
+        $this->assertNull($account->password);
+        $activationToken = null;
+        Mail::assertSent(CommercialInvitationMail::class, function (CommercialInvitationMail $mail) use (&$activationToken): bool {
+            preg_match('~/account/activation/([A-Za-z0-9]+)~', $mail->activationUrl, $matches);
+            $activationToken = $matches[1] ?? null;
+            return $mail->role === 'exposant';
+        });
+        $this->assertNotNull($activationToken);
+        $this->post(route('logout'));
+        $this->post(route('account-activation.accept', $activationToken), [
+            'password' => 'secret-pass-123',
+            'password_confirmation' => 'secret-pass-123',
+        ])->assertRedirect(route('login'));
+        $this->assertTrue(Hash::check('secret-pass-123', $account->fresh()->password));
 
         $this->post(route('logout'));
 
         $this->post(route('login.store'), [
             'email' => $account->email,
-            'password' => $payload['password'],
+            'password' => 'secret-pass-123',
         ])->assertRedirect(route('exposant.index'));
 
         $this->get(route('exposant.index'))
@@ -338,8 +349,9 @@ class AuthenticationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_must_provide_initial_password_when_creating_commercial(): void
+    public function test_admin_creates_commercial_without_an_initial_password(): void
     {
+        Mail::fake();
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin)
@@ -349,9 +361,15 @@ class AuthenticationTest extends TestCase
                 'phone' => '+212600000000',
                 'is_active' => '1',
             ])
-            ->assertSessionHasErrors('password');
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('users', [
+        $commercial = User::query()->where('email', 'commercial@example.test')->firstOrFail();
+        $this->assertNull($commercial->password);
+        $this->assertDatabaseHas('commercial_invitations', [
+            'user_id' => $commercial->id,
+            'delivery_status' => 'sent',
+        ]);
+        $this->assertDatabaseHas('users', [
             'email' => 'commercial@example.test',
         ]);
     }
@@ -402,8 +420,9 @@ class AuthenticationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_creates_commercial_with_hashed_initial_password_and_commercial_can_login(): void
+    public function test_admin_creates_commercial_and_invitation_activates_it_for_login(): void
     {
+        Mail::fake();
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin)
@@ -412,8 +431,6 @@ class AuthenticationTest extends TestCase
                 'email' => 'commercial-dev@example.test',
                 'phone' => '+212600000000',
                 'is_active' => '1',
-                'password' => 'initial-secret',
-                'password_confirmation' => 'initial-secret',
             ])
             ->assertRedirect();
 
@@ -421,10 +438,18 @@ class AuthenticationTest extends TestCase
             ->where('email', 'commercial-dev@example.test')
             ->firstOrFail();
 
-        $this->assertTrue(Hash::check(
-            'initial-secret',
-            $commercial->password
-        ));
+        $this->assertNull($commercial->password);
+        $activationToken = null;
+        Mail::assertSent(CommercialInvitationMail::class, function (CommercialInvitationMail $mail) use (&$activationToken): bool {
+            preg_match('~/account/activation/([A-Za-z0-9]+)~', $mail->activationUrl, $matches);
+            $activationToken = $matches[1] ?? null;
+            return $mail->role === 'commercial';
+        });
+        $this->post(route('logout'));
+        $this->post(route('account-activation.accept', $activationToken), [
+            'password' => 'initial-secret',
+            'password_confirmation' => 'initial-secret',
+        ])->assertRedirect(route('login'));
 
         $this->post(route('logout'));
 

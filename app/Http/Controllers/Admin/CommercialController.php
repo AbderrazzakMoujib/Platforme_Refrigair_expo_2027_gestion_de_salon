@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\CommercialInvitation;
+use App\Services\AccountInvitationService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +43,7 @@ class CommercialController extends Controller
 
         $commercials = User::query()
             ->where('role', UserRole::Commercial->value)
+            ->with('latestInvitation')
             ->withCount('exhibitors')
             ->when(
                 !empty($filters['search']),
@@ -85,7 +89,7 @@ class CommercialController extends Controller
         );
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AccountInvitationService $invitations): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -96,13 +100,6 @@ class CommercialController extends Controller
                 'unique:users,email',
             ],
             'phone' => ['nullable', 'string', 'max:40'],
-            'password' => [
-                'required',
-                'string',
-                'confirmed',
-                'min:8',
-            ],
-            'is_active' => ['required', 'boolean'],
             'profile_photo' => [
                 'nullable',
                 'image',
@@ -122,12 +119,15 @@ class CommercialController extends Controller
         }
 
         try {
-            $commercial = User::query()->create([
-                ...$validated,
-                'profile_photo' => $photoPath,
-                'role' => UserRole::Commercial,
-                'is_active' => (bool) $validated['is_active'],
-            ]);
+            [$commercial, $issued] = DB::transaction(function () use ($validated, $photoPath, $invitations) {
+                $commercial = User::query()->create([
+                    'name' => $validated['name'], 'email' => $validated['email'],
+                    'phone' => $validated['phone'] ?? null, 'password' => null,
+                    'profile_photo' => $photoPath, 'role' => UserRole::Commercial,
+                    'is_active' => true,
+                ]);
+                return [$commercial, $invitations->issueFor($commercial)];
+            });
         } catch (\Throwable $exception) {
             if ($photoPath) {
                 Storage::disk('public')->delete($photoPath);
@@ -136,24 +136,26 @@ class CommercialController extends Controller
             throw $exception;
         }
 
+        $sent = $invitations->deliver($issued['invitation'], $issued['token']);
+
         return redirect()
             ->route('admin.commerciaux.show', $commercial)
-            ->with('status', 'Commercial créé avec succès.');
+            ->with($sent ? 'status' : 'warning', $sent
+                ? 'Commercial créé. Le courriel d’invitation a été envoyé.'
+                : 'Compte créé, mais le courriel n’a pas pu être envoyé. Vérifiez le SMTP puis renvoyez l’invitation.');
     }
 
     public function show(Request $request, User $commercial): View
     {
         $this->ensureCommercial($commercial);
 
-        $commercial->loadCount('exhibitors');
+        $commercial->loadCount('exhibitors')->load('latestInvitation');
 
         return view('admin.commerciaux.show', [
             'admin' => $request->user(),
             'adminInitials' => $request->user()->initials,
             'commercial' => $commercial,
-            'accessStatus' => $commercial->password === null
-                ? 'Mot de passe à définir'
-                : 'Accès activé',
+            'accessStatus' => CommercialInvitation::statusFor($commercial),
         ]);
     }
 
@@ -204,6 +206,8 @@ class CommercialController extends Controller
         );
 
         $previousPhoto = $commercial->profile_photo;
+        $emailChanged = $validated['email'] !== $commercial->email;
+        $wasActive = $commercial->is_active;
         $newPhoto = null;
 
         if ($request->hasFile('profile_photo')) {
@@ -221,6 +225,9 @@ class CommercialController extends Controller
                 ...$validated,
                 'is_active' => (bool) $validated['is_active'],
             ]);
+            if (($emailChanged && $commercial->password === null) || ($wasActive && ! $commercial->is_active)) {
+                app(AccountInvitationService::class)->revokeOutstanding($commercial);
+            }
         } catch (\Throwable $exception) {
             if ($newPhoto) {
                 Storage::disk('public')->delete($newPhoto);
@@ -239,6 +246,24 @@ class CommercialController extends Controller
         return redirect()
             ->route('admin.commerciaux.show', $commercial)
             ->with('status', 'Informations du commercial mises à jour.');
+    }
+
+    public function resendInvitation(User $commercial, AccountInvitationService $invitations): RedirectResponse
+    {
+        $this->ensureCommercial($commercial);
+        $issued = $invitations->prepareResend($commercial);
+        if (! isset($issued['invitation'])) {
+            return back()->with('warning', match ($issued['reason'] ?? '') {
+                'activated' => 'Ce compte est déjà activé.',
+                'disabled' => 'Réactivez le compte avant de renvoyer une invitation.',
+                'recent' => 'Une invitation vient d’être envoyée. Réessayez dans une minute.',
+                default => 'Cette invitation ne peut pas être renvoyée.',
+            });
+        }
+        $sent = $invitations->deliver($issued['invitation'], $issued['token']);
+        return back()->with($sent ? 'status' : 'warning', $sent
+            ? 'Invitation envoyée.'
+            : 'Le courriel n’a pas pu être envoyé. Vérifiez le SMTP puis réessayez.');
     }
 
     private function ensureCommercial(User $user): void

@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Exhibitor;
 use App\Models\User;
+use App\Models\CommercialInvitation;
+use App\Services\AccountInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
@@ -43,7 +45,7 @@ class CommercialExhibitorController extends Controller
         $status = $request->input('status', '');
 
         $exhibitors = (clone $baseQuery)
-            ->with('user')
+            ->with('user.latestInvitation')
             ->withCount('badges')
 
             ->when($search !== '', function ($query) use ($search) {
@@ -100,13 +102,7 @@ class CommercialExhibitorController extends Controller
     {
         $validated = $this->validated($request);
 
-        $account = $request->validate([
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8),
-            ],
-        ]);
+        $request->validate(['email' => [Rule::unique('users', 'email')]]);
 
         unset($validated['logo']);
 
@@ -117,21 +113,18 @@ class CommercialExhibitorController extends Controller
         }
 
         try {
-            $exhibitor = DB::transaction(function () use (
+            [$exhibitor, $issued] = DB::transaction(function () use (
                 $request,
-                $validated,
-                $account
+                $validated
             ) {
                 $exhibitor = $request->user()
                     ->exhibitors()
                     ->create($validated);
 
-                $this->createAccount(
-                    $exhibitor,
-                    $account['password']
-                );
+                $user = $this->createAccount($exhibitor);
+                $issued = app(AccountInvitationService::class)->issueFor($user);
 
-                return $exhibitor;
+                return [$exhibitor, $issued];
             });
         } catch (Throwable $exception) {
             if ($logoPath !== null) {
@@ -141,9 +134,13 @@ class CommercialExhibitorController extends Controller
             throw $exception;
         }
 
+        $sent = app(AccountInvitationService::class)->deliver($issued['invitation'], $issued['token']);
+
         return redirect()
             ->route('commercial.exhibitors.show', $exhibitor)
-            ->with('status', 'Exposant ajouté avec succès.');
+            ->with($sent ? 'status' : 'warning', $sent
+                ? 'Exposant ajouté. Son invitation a été envoyée par courriel.'
+                : 'Exposant créé, mais le courriel d’invitation n’a pas pu être envoyé.');
     }
 
     public function show(
@@ -152,17 +149,13 @@ class CommercialExhibitorController extends Controller
     ): View {
         $exhibitor = $this->ownedBy($request, $exhibitor);
 
-        $exhibitor->load('user');
+        $exhibitor->load('user.latestInvitation');
         $exhibitor->loadCount('badges');
 
         return view('commercial.exhibitors.show', [
             ...$this->layoutData($request->user()),
             'exhibitor' => $exhibitor,
-            'accessStatus' => ! $exhibitor->user
-                ? 'Sans accès'
-                : ($exhibitor->user->is_active
-                    ? 'Accès actif'
-                    : 'Désactivé'),
+            'accessStatus' => ! $exhibitor->user ? 'Sans accès' : CommercialInvitation::statusFor($exhibitor->user),
         ]);
     }
 
@@ -193,6 +186,12 @@ class CommercialExhibitorController extends Controller
         $exhibitor = $this->ownedBy($request, $exhibitor);
 
         $validated = $this->validated($request);
+        $exhibitor->loadMissing('user');
+        if ($exhibitor->user && $exhibitor->user->password === null) {
+            $request->validate([
+                'email' => [Rule::unique('users', 'email')->ignore($exhibitor->user->id)],
+            ]);
+        }
 
         unset($validated['logo']);
 
@@ -223,6 +222,15 @@ class CommercialExhibitorController extends Controller
                 }
 
                 $locked->update($validated);
+
+                $account = $locked->user()->lockForUpdate()->first();
+                if ($account && $account->password === null) {
+                    $identityChanged = $account->email !== $locked->email || $account->name !== $locked->contact_name;
+                    $account->forceFill(['email' => $locked->email, 'name' => $locked->contact_name])->save();
+                    if ($identityChanged) {
+                        app(AccountInvitationService::class)->revokeOutstanding($account);
+                    }
+                }
             });
 
         } catch (Throwable $exception) {
@@ -246,25 +254,14 @@ class CommercialExhibitorController extends Controller
 
         abort_if($exhibitor->user_id, 409);
 
-        $validated = $request->validate([
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8),
-            ],
-        ]);
-
-        DB::transaction(fn () =>
-            $this->createAccount(
-                $exhibitor,
-                $validated['password']
-            )
-        );
-
-        return back()->with(
-            'status',
-            'Compte exposant créé.'
-        );
+        $issued = DB::transaction(function () use ($exhibitor) {
+            $user = $this->createAccount($exhibitor);
+            return app(AccountInvitationService::class)->issueFor($user);
+        });
+        $sent = app(AccountInvitationService::class)->deliver($issued['invitation'], $issued['token']);
+        return back()->with($sent ? 'status' : 'warning', $sent
+            ? 'Compte exposant créé et invitation envoyée.'
+            : 'Compte exposant créé, mais le courriel n’a pas pu être envoyé.');
     }
 
     public function toggleAccess(
@@ -279,6 +276,9 @@ class CommercialExhibitorController extends Controller
             ! $exhibitor->user->is_active;
 
         $exhibitor->user->save();
+        if (! $exhibitor->user->is_active) {
+            app(AccountInvitationService::class)->revokeOutstanding($exhibitor->user);
+        }
 
         return back()->with(
             'status',
@@ -286,6 +286,25 @@ class CommercialExhibitorController extends Controller
                 ? 'Accès activé.'
                 : 'Accès désactivé.'
         );
+    }
+
+    public function resendInvitation(Request $request, Exhibitor $exhibitor, AccountInvitationService $invitations): RedirectResponse
+    {
+        $exhibitor = $this->ownedBy($request, $exhibitor);
+        abort_unless($exhibitor->user, 404);
+        $issued = $invitations->prepareResend($exhibitor->user);
+        if (! isset($issued['invitation'])) {
+            return back()->with('warning', match ($issued['reason'] ?? '') {
+                'activated' => 'Ce compte est déjà activé.',
+                'disabled' => 'Réactivez le compte avant de renvoyer une invitation.',
+                'recent' => 'Une invitation vient d’être envoyée. Réessayez dans une minute.',
+                default => 'Cette invitation ne peut pas être renvoyée.',
+            });
+        }
+        $sent = $invitations->deliver($issued['invitation'], $issued['token']);
+        return back()->with($sent ? 'status' : 'warning', $sent
+            ? 'Invitation envoyée.'
+            : 'Le courriel n’a pas pu être envoyé. Vérifiez le SMTP puis réessayez.');
     }
 
     private function uploadLogo(Request $request): ?string
@@ -308,21 +327,19 @@ class CommercialExhibitorController extends Controller
         return $path;
     }
 
-    private function createAccount(
-        Exhibitor $exhibitor,
-        string $password
-    ): void {
+    private function createAccount(Exhibitor $exhibitor): User {
         abort_if($exhibitor->user_id, 409);
 
         $user = User::query()->create([
             'name' => $exhibitor->contact_name,
             'email' => $exhibitor->email,
-            'password' => $password,
+            'password' => null,
             'role' => UserRole::Exposant,
             'is_active' => true,
         ]);
 
         $exhibitor->user()->associate($user)->save();
+        return $user;
     }
 
     private function ownedBy(

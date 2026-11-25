@@ -116,34 +116,10 @@
                     </div>
 
                     @unless ($editing)
-                        <div>
-                            <label for="password" class="{{ $label }}">
-                                Mot de passe initial *
-                            </label>
-                            <input id="password"
-                                   name="password"
-                                   type="password"
-                                   required
-                                   minlength="8"
-                                   autocomplete="new-password"
-                                   class="{{ $field }}">
-                        </div>
-
-                        <div>
-                            <label for="password_confirmation"
-                                   class="{{ $label }}">
-                                Confirmer le mot de passe *
-                            </label>
-                            <input id="password_confirmation"
-                                   name="password_confirmation"
-                                   type="password"
-                                   required
-                                   minlength="8"
-                                   autocomplete="new-password"
-                                   class="{{ $field }}">
-                        </div>
+                        <p class="sm:col-span-2 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">Un courriel sécurisé invitera le commercial à choisir son mot de passe. Aucun mot de passe initial ne sera envoyé.</p>
                     @endunless
 
+                    @if ($editing)
                     <div class="sm:col-span-2">
                         <label for="is_active" class="{{ $label }}">
                             Statut du compte *
@@ -163,6 +139,7 @@
                             </option>
                         </select>
                     </div>
+                    @endif
 
                 </div>
             </section>

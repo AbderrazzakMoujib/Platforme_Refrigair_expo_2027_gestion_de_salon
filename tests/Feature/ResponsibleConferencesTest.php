@@ -8,10 +8,12 @@ use App\Models\Exhibitor;
 use App\Models\Slot;
 use App\Models\SlotRequest;
 use App\Models\User;
+use App\Mail\CommercialInvitationMail;
 use App\Notifications\SlotConfirmedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\SlotFixtures;
 use Tests\TestCase;
 
@@ -68,6 +70,7 @@ class ResponsibleConferencesTest extends TestCase
 
     public function test_only_admin_can_create_manage_and_revoke_manager_accounts(): void
     {
+        Mail::fake();
         $admin = User::factory()->create(['role' => 'admin']);
         $commercial = $this->commercial();
 
@@ -79,15 +82,26 @@ class ResponsibleConferencesTest extends TestCase
             ->post(route('admin.responsables-conferences.store'), [
                 'name' => 'Responsable Essai',
                 'email' => 'manager@example.test',
-                'password' => 'StrongPass123!',
-                'password_confirmation' => 'StrongPass123!',
             ])
             ->assertRedirect(route('admin.responsables-conferences.index'));
 
         $manager = User::query()->where('email', 'manager@example.test')->firstOrFail();
         $this->assertSame('responsable_conferences', $manager->role->value);
         $this->assertTrue($manager->is_active);
-        $this->assertTrue(Hash::check('StrongPass123!', $manager->password));
+        $this->assertNull($manager->password);
+        $activationToken = null;
+        Mail::assertSent(CommercialInvitationMail::class, function (CommercialInvitationMail $mail) use (&$activationToken): bool {
+            preg_match('~/account/activation/([A-Za-z0-9]+)~', $mail->activationUrl, $matches);
+            $activationToken = $matches[1] ?? null;
+            return $mail->role === 'responsable_conferences';
+        });
+        $this->post(route('logout'));
+        $this->post(route('account-activation.accept', $activationToken), [
+            'password' => 'StrongPass123!',
+            'password_confirmation' => 'StrongPass123!',
+        ])->assertRedirect(route('login'));
+        $this->assertTrue(Hash::check('StrongPass123!', $manager->fresh()->password));
+        $this->actingAs($admin);
 
         $this->put(route('admin.responsables-conferences.update', $manager), [
             'name' => 'Responsable Modifié',

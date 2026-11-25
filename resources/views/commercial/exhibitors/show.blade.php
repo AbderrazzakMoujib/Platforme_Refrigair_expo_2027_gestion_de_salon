@@ -17,6 +17,7 @@
 
         $statusClass = match (true) {
             ! $hasAccount => 'bg-amber-50 text-amber-700 border-amber-100',
+            $isActive && $exhibitor->user->password === null => 'bg-amber-50 text-amber-700 border-amber-100',
             $isActive => 'bg-emerald-50 text-emerald-700 border-emerald-100',
             default => 'bg-red-50 text-red-700 border-red-100',
         };
@@ -105,6 +106,10 @@
                 {{ session('status') }}
             </div>
 
+        @endif
+
+        @if (session('warning'))
+            <div role="alert" class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{{ session('warning') }}</div>
         @endif
 
         @if ($errors->any())
@@ -312,6 +317,8 @@
 
                             @if (! $hasAccount)
                                 Aucun compte n'est associé à cet exposant.
+                            @elseif ($isActive && $exhibitor->user->password === null)
+                                Une invitation est en attente d’activation. L’exposant définira son mot de passe depuis le courriel.
                             @elseif ($isActive)
                                 L'exposant peut accéder à son espace personnel.
                             @else
@@ -332,14 +339,13 @@
 
                             <div>
 
-                                <label for="password" class="text-xs font-semibold">
+                                <label for="password" class="hidden text-xs font-semibold">
                                     Mot de passe initial
                                 </label>
 
                                 <input id="password"
                                        name="password"
-                                       type="password"
-                                       required
+                                       type="hidden"
                                        minlength="8"
                                        autocomplete="new-password"
                                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -348,14 +354,13 @@
 
                             <div>
 
-                                <label for="password_confirmation" class="text-xs font-semibold">
+                                <label for="password_confirmation" class="hidden text-xs font-semibold">
                                     Confirmer le mot de passe
                                 </label>
 
                                 <input id="password_confirmation"
                                        name="password_confirmation"
-                                       type="password"
-                                       required
+                                       type="hidden"
                                        minlength="8"
                                        autocomplete="new-password"
                                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -370,6 +375,10 @@
                         </form>
 
                     @else
+
+                        @if ($exhibitor->user->password === null && $exhibitor->user->is_active)
+                            <form method="POST" action="{{ route('commercial.exhibitors.invitation', $exhibitor) }}" class="mb-4">@csrf<button class="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">Renvoyer l’invitation</button></form>
+                        @endif
 
                         <div>
 
