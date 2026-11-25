@@ -167,7 +167,7 @@ class CommercialBadgesTest extends TestCase
         $empty = $this->exhibitorFor($commercial, 'Vide', 2);
         $this->post(route('commercial.badges.print-exhibitor', $empty))
             ->assertRedirect()
-            ->assertSessionHas('status');
+            ->assertSessionHas('warning');
     }
 
     public function test_quota_update_respects_used_badges_and_ownership(): void

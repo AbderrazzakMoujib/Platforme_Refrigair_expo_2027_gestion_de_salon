@@ -1,5 +1,105 @@
 @import 'tailwindcss';
 
+.ui-toast-root {
+    position: fixed;
+    z-index: 10000;
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    display: grid;
+    width: min(25rem, calc(100vw - 2rem));
+    gap: 0.75rem;
+    pointer-events: none;
+}
+
+.ui-toast {
+    --toast-accent: #2563eb;
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 2rem;
+    gap: 0.75rem;
+    overflow: hidden;
+    padding: 1rem 0.9rem 1.05rem;
+    color: #0f2347;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--toast-accent);
+    border-radius: 0.85rem;
+    box-shadow: 0 12px 28px rgb(15 35 71 / 12%);
+    pointer-events: auto;
+    animation: ui-toast-enter 180ms ease-out both;
+}
+
+.ui-toast--success { --toast-accent: #059669; }
+.ui-toast--error { --toast-accent: #dc2626; }
+.ui-toast--warning { --toast-accent: #d97706; }
+.ui-toast--info { --toast-accent: #2563eb; }
+
+.ui-toast__icon {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: var(--toast-accent);
+    background: color-mix(in srgb, var(--toast-accent) 10%, white);
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.ui-toast__content { min-width: 0; }
+.ui-toast__title { margin: 0; font-size: 0.875rem; font-weight: 750; line-height: 1.35; }
+.ui-toast__message { margin: 0.25rem 0 0; color: #475569; font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+.ui-toast__close {
+    align-self: start;
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: #64748b;
+    background: transparent;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.ui-toast__close:hover { color: #0f2347; background: #f1f5f9; }
+.ui-toast__close:focus-visible { outline: 2px solid var(--toast-accent); outline-offset: 2px; }
+
+.ui-toast__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--toast-accent);
+    transform-origin: left center;
+    animation: ui-toast-progress linear both;
+}
+
+.ui-toast:is(:hover, :focus-within) .ui-toast__progress { animation-play-state: paused; }
+
+@keyframes ui-toast-enter {
+    from { opacity: 0; transform: translateY(-0.4rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ui-toast-progress { to { transform: scaleX(0); } }
+
+@media (max-width: 640px) {
+    .ui-toast-root {
+        right: max(0.75rem, env(safe-area-inset-right));
+        left: max(0.75rem, env(safe-area-inset-left));
+        width: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-toast, .ui-toast__progress { animation: none; }
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';

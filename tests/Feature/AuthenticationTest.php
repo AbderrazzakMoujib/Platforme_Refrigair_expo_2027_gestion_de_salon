@@ -654,7 +654,7 @@ class AuthenticationTest extends TestCase
 
         $this->post(route('password.email'), [
             'email' => $activeUser->email,
-        ])->assertSessionHas('status');
+        ])->assertSessionHas('info');
 
         Notification::assertSentTo(
             $activeUser,
@@ -663,7 +663,7 @@ class AuthenticationTest extends TestCase
 
         $this->post(route('password.email'), [
             'email' => $inactiveUser->email,
-        ])->assertSessionHas('status');
+        ])->assertSessionHas('info');
 
         Notification::assertNotSentTo(
             $inactiveUser,

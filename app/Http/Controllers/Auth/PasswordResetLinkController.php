@@ -32,6 +32,6 @@ class PasswordResetLinkController extends Controller
             Password::sendResetLink($request->only('email'));
         }
 
-        return back()->with('status', 'Ila l-email kayn f compte actif, ghadi twslek lien bach tbeddel mot de passe.');
+        return back()->with('info', 'Ila l-email kayn f compte actif, ghadi twslek lien bach tbeddel mot de passe.');
     }
 }

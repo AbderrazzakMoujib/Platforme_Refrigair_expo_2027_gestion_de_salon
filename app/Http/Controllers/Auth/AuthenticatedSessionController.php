@@ -49,7 +49,16 @@ class AuthenticatedSessionController extends Controller
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
 
-        return redirect()->route($this->homeRouteFor(Auth::user()->role));
+        $user = Auth::user();
+        [$message, $firstName] = $this->welcomeFor($user->role, $user->name);
+        $request->session()->flash('welcome_toast', [
+            'type' => 'success',
+            'title' => "Bienvenue, {$firstName} !",
+            'message' => $message,
+            'duration' => 5000,
+        ]);
+
+        return redirect()->route($this->homeRouteFor($user->role));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -72,5 +81,32 @@ class AuthenticatedSessionController extends Controller
             UserRole::ResponsableConferences->value => 'responsable-conferences.dashboard',
             default => 'exposant.index',
         };
+    }
+
+    /** @return array{string, string} */
+    private function welcomeFor(UserRole|string $role, ?string $name): array
+    {
+        $value = $role instanceof UserRole ? $role->value : $role;
+        $message = match ($value) {
+            UserRole::Admin->value => "Connexion réussie. Votre espace d'administration est prêt.",
+            UserRole::Commercial->value => 'Connexion réussie. Retrouvez vos exposants et vos activités.',
+            UserRole::ResponsableConferences->value => 'Connexion réussie. Retrouvez votre planning et vos réservations.',
+            default => 'Connexion réussie. Heureux de vous retrouver dans votre espace exposant.',
+        };
+
+        $name = trim((string) $name);
+        $parts = preg_split('/\s+/u', $name, 2) ?: [];
+        $firstName = $parts[0] ?? '';
+        if (
+            $firstName === ''
+            || str_contains($firstName, '@')
+            || ! preg_match('/^[\p{L}\p{M}][\p{L}\p{M}\p{Pd}\x{2019}\x{27}]*$/u', $firstName)
+        ) {
+            $firstName = 'utilisateur';
+        } else {
+            $firstName = mb_strtoupper(mb_substr($firstName, 0, 1)).mb_substr($firstName, 1);
+        }
+
+        return [$message, $firstName];
     }
 }

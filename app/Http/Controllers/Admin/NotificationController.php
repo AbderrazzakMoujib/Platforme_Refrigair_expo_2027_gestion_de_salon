@@ -188,7 +188,7 @@ public function open(
         if (!$exists) {
             return redirect()
                 ->route('admin.demandes.index')
-                ->with('status', 'Cette demande n’est plus disponible.');
+                ->with('warning', 'Cette demande n’est plus disponible.');
         }
 
         return redirect()->route(
@@ -216,7 +216,7 @@ public function open(
         if (!$exists) {
             return redirect()
                 ->route('admin.exposants.index')
-                ->with('status', 'Cet exposant n’est plus disponible.');
+                ->with('warning', 'Cet exposant n’est plus disponible.');
         }
 
         return redirect()->route(

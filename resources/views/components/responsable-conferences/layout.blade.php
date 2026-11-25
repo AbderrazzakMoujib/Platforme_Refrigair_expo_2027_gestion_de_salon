@@ -314,5 +314,6 @@
         </footer>
 
     </div>
+    <x-ui.toast />
 </body>
 </html>

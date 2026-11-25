@@ -151,7 +151,7 @@ class CommercialBadgeController extends Controller
             ->each(fn (Badge $badge) => $badge->setRelation('exhibitor', $exhibitor));
 
         if ($badges->isEmpty()) {
-            return back()->with('status', "Aucun badge actif à imprimer pour {$exhibitor->company_name}.");
+            return back()->with('warning', "Aucun badge actif à imprimer pour {$exhibitor->company_name}.");
         }
 
         $this->logPrinted($badges, $request->user(), 'exhibitor');

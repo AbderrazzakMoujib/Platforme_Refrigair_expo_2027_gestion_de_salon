@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@props(['title' => null, 'toastMessages' => null])
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
@@ -14,14 +15,9 @@
                     <img src="{{ asset('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-Sans-titre-4-removebg-preview.png') }}" alt="Refrigair Expo 2027" class="h-auto max-h-20 w-full max-w-[260px] object-contain sm:max-h-24" />
                 </a>
 
-                @if (session('status'))
-                    <div class="mt-6 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">
-                        {{ session('status') }}
-                    </div>
-                @endif
-
                 {{ $slot }}
             </section>
         </main>
+        <x-ui.toast :messages="$toastMessages" />
     </body>
 </html>
