@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Enums\SlotRequestStatus;
+use App\Models\SlotRequest;
 use App\Models\SupportTicket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,6 +128,47 @@ class AccountNotificationController extends Controller
         $fallback = route(
             $this->routePrefix($request) . '.index'
         );
+
+        // Collaboration notifications may only open the current Exhibitor's booking.
+        if (
+            $user->role === UserRole::Exposant
+            && in_array($data['type'] ?? null, [
+                'conference_message',
+                'conference_support',
+                'conference_support_review',
+            ], true)
+        ) {
+            $requestId = $data['slot_request_id'] ?? null;
+
+            if (! is_scalar($requestId) || ! ctype_digit((string) $requestId) || (int) $requestId < 1) {
+                return redirect()->to($fallback);
+            }
+
+            $exhibitor = $user->exhibitorProfile()->first();
+
+            if (! $exhibitor) {
+                return redirect()->to($fallback);
+            }
+
+            $reservation = SlotRequest::query()
+                ->whereKey((int) $requestId)
+                ->where('exhibitor_id', $exhibitor->id)
+                ->where('status', SlotRequestStatus::Accepted)
+                ->whereNotNull('assigned_slot_id')
+                ->whereHas('assignedSlot', fn ($query) => $query
+                    ->where('exhibitor_id', $exhibitor->id)
+                    ->whereIn('status', ['reserved', 'paid']))
+                ->first();
+
+            if (! $reservation) {
+                return redirect()->to($fallback);
+            }
+
+            return redirect()->route(
+                'exhibitor.slots.index',
+                ['conference' => $reservation->id]
+            )->withFragment('conference-followup');
+        }
 
 
         // Ouvrir une notification de demande d'équipements.

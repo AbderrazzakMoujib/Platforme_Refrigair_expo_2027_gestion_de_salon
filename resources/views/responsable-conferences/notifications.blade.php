@@ -196,6 +196,21 @@
                         <option value="conference_rejected" @selected($selectedType === 'conference_rejected')>
                             Refus
                         </option>
+
+                        <option value="conference_message"
+    @selected($selectedType === 'conference_message')>
+    Messages des conférences
+</option>
+
+<option value="conference_support"
+    @selected($selectedType === 'conference_support')>
+    Supports reçus
+</option>
+
+<option value="conference_support_review"
+    @selected($selectedType === 'conference_support_review')>
+    Vérification des supports
+</option>
                     </select>
                 </div>
 

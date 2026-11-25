@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SlotRequestStatus;
+use App\Models\SlotRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
@@ -20,11 +22,14 @@ class ResponsableConferenceNotificationController extends Controller
             'type' => [
                 'nullable',
                 Rule::in([
-                    'all',
-                    'conference_request',
-                    'conference_accepted',
-                    'conference_rejected',
-                ]),
+    'all',
+    'conference_request',
+    'conference_accepted',
+    'conference_rejected',
+    'conference_message',
+    'conference_support',
+    'conference_support_review',
+]),
             ],
             'period' => [
                 'nullable',
@@ -123,6 +128,31 @@ class ResponsableConferenceNotificationController extends Controller
             ->findOrFail($notification);
 
         $item->markAsRead();
+
+        if (in_array(
+            $item->data['type'] ?? '',
+            ['conference_message', 'conference_support', 'conference_support_review'],
+            true
+        )) {
+            $requestId = $item->data['slot_request_id'] ?? null;
+
+            if (! is_scalar($requestId) || ! ctype_digit((string) $requestId) || (int) $requestId < 1) {
+                return redirect()->route('responsable-conferences.notifications.index');
+            }
+
+            $reservation = SlotRequest::query()
+                ->whereKey((int) $requestId)
+                ->where('status', SlotRequestStatus::Accepted)
+                ->whereNotNull('assigned_slot_id')
+                ->whereHas('assignedSlot', fn ($query) => $query
+                    ->whereColumn('slots.exhibitor_id', 'slot_requests.exhibitor_id')
+                    ->whereIn('status', ['reserved', 'paid']))
+                ->first();
+
+            return $reservation
+                ? redirect()->route('responsable-conferences.supports.show', $reservation)
+                : redirect()->route('responsable-conferences.notifications.index');
+        }
 
         if (in_array(
             $item->data['type'] ?? '',

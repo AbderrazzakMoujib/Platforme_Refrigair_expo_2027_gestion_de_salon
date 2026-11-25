@@ -179,7 +179,7 @@
 
             {{-- EXHIBITOR UPLOAD --}}
             @unless($isManager)
-                @if($supportStatus !== 'approved')
+                @if(in_array($supportStatus, ['not_submitted', 'revision_requested'], true))
                     <form
                         method="POST"
                         action="{{ route('exhibitor.conferences.collaboration.support', $reservation) }}"
@@ -228,15 +228,20 @@
                         </button>
                     </form>
                 @else
-                    <p class="mt-5 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-                        Votre support a été approuvé.
-                        Pour demander une modification, contactez le Responsable via la messagerie.
-                    </p>
+                    @if($supportStatus === 'approved')
+                        <p class="mt-5 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                            Votre support a été approuvé. Pour le remplacer, demandez une nouvelle révision au Responsable via la messagerie.
+                        </p>
+                    @else
+                        <p class="mt-5 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">
+                            Votre support est en cours de vérification. Le formulaire sera réactivé si une modification est demandée.
+                        </p>
+                    @endif
                 @endif
             @endunless
 
             {{-- MANAGER REVIEW --}}
-            @if($isManager && $slot->support_path)
+            @if($isManager && $slot->support_path && in_array($supportStatus, ['pending', 'approved'], true))
                 <form
                     method="POST"
                     action="{{ route('responsable-conferences.supports.review', $reservation) }}"
@@ -259,6 +264,7 @@
                     </div>
 
                     <div class="flex flex-wrap gap-3">
+                        @if($supportStatus === 'pending')
                         <button
                             type="submit"
                             name="decision"
@@ -267,17 +273,35 @@
                         >
                             Approuver le support
                         </button>
+                        @endif
 
                         <button
                             type="submit"
                             name="decision"
                             value="revision_requested"
+                            data-requires-note
                             class="rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-white hover:bg-amber-600"
                         >
                             Demander une modification
                         </button>
                     </div>
                 </form>
+                <script>
+                    (() => {
+                        const form = document.currentScript.previousElementSibling;
+                        const note = form?.querySelector('textarea[name="note"]');
+                        if (!form || !note) return;
+                        form.querySelectorAll('button[name="decision"]').forEach(button => {
+                            button.addEventListener('click', () => {
+                                note.required = button.hasAttribute('data-requires-note');
+                            });
+                        });
+                    })();
+                </script>
+            @elseif($isManager && $supportStatus === 'revision_requested')
+                <p class="mt-5 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">
+                    En attente de la version corrigée de l’exposant.
+                </p>
             @endif
         </div>
 

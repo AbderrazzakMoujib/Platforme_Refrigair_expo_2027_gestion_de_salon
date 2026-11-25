@@ -173,20 +173,12 @@ class ConferenceCollaborationController extends Controller
             ],
         ]);
 
-        $slot = $slotRequest->assignedSlot;
-
-        $service->storeSupport(
-            $slot,
-            $request->file('support')
+        $slotRequest = $service->uploadConferenceSupport(
+            $slotRequest,
+            $request->file('support'),
+            $data['support_details'],
+            $request->user()
         );
-
-        $slotRequest->update([
-            'support_details' => $data['support_details'],
-            'support_review_status' => 'pending',
-            'support_review_note' => null,
-            'support_reviewed_at' => null,
-            'support_reviewed_by' => null,
-        ]);
 
         $slotRequest->loadMissing('exhibitor');
 
@@ -205,70 +197,44 @@ class ConferenceCollaborationController extends Controller
 
     public function reviewSupport(
         Request $request,
-        SlotRequest $slotRequest
+        SlotRequest $slotRequest,
+        SlotService $service
     ): RedirectResponse {
-        $isManager = $this->authorizeAccess(
-            $request,
-            $slotRequest
-        );
-
+        $isManager = $this->authorizeAccess($request, $slotRequest);
         abort_unless($isManager, 403);
 
         $data = $request->validate([
-            'decision' => [
-                'required',
-                Rule::in(['approved', 'revision_requested']),
-            ],
-            'note' => [
-                'nullable',
-                'required_if:decision,revision_requested',
-                'string',
-                'max:2000',
-            ],
+            'decision' => ['required', Rule::in(['approved', 'revision_requested'])],
+            'note' => ['nullable', 'required_if:decision,revision_requested', 'string', 'max:2000'],
         ]);
 
-        abort_unless(
-            $slotRequest->assignedSlot->support_path,
-            422,
-            'Aucun support à vérifier.'
-        );
-
-        abort_unless(
-            in_array(
-                $slotRequest->support_review_status,
-                ['pending', 'approved', 'revision_requested'],
-                true
-            ),
-            422
-        );
-
-        $slotRequest->update([
-            'support_review_status' => $data['decision'],
-            'support_review_note' => $data['note'] ?? null,
-            'support_reviewed_at' => now(),
-            'support_reviewed_by' => $request->user()->id,
-        ]);
-
-        $approved = $data['decision'] === 'approved';
-
-        $this->notifyExhibitor(
+        $slotRequest = $service->reviewConferenceSupport(
             $slotRequest,
-            'conference_support_review',
-            $approved
-                ? 'Support approuvé'
-                : 'Modification du support demandée',
-            $approved
-                ? 'Votre support de présentation a été approuvé.'
-                : 'Le Responsable Conférences a demandé des modifications à votre support.'
+            $data['decision'],
+            $data['note'] ?? null,
+            $request->user()
         );
 
-        return back()->with(
-            'status',
-            $approved
-                ? 'Le support a été approuvé.'
-                : 'La demande de modification a été envoyée.'
-        );
-    }
+    $approved = $data['decision'] === 'approved';
+
+    $this->notifyExhibitor(
+        $slotRequest,
+        'conference_support_review',
+        $approved
+            ? 'Support approuvé'
+            : 'Modification du support demandée',
+        $approved
+            ? 'Votre support de présentation a été approuvé.'
+            : 'Le Responsable Conférences a demandé des modifications à votre support.'
+    );
+
+    return back()->with(
+        'status',
+        $approved
+            ? 'Le support a été approuvé.'
+            : 'La demande de modification a été envoyée.'
+    );
+}
 
     public function sendMessage(
         Request $request,

@@ -87,9 +87,9 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-[#F5F7FB] font-sans text-slate-900 antialiased">
-    *<!-- DESKTOP SIDEBAR -->*
+    <!-- DESKTOP SIDEBAR -->
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-[#0F2347] px-4 py-6 md:flex">
-        *<!-- LOGO -->*
+        <!-- LOGO -->
         <a href="{{ route('exposant.index') }}"
            class="flex min-h-20 items-center justify-center rounded-xl px-2"
            aria-label="Refrigair Expo 2027">
@@ -99,7 +99,7 @@
                 class="max-h-16 w-full max-w-[230px] object-contain"
             >
         </a>
-        *<!-- NAVIGATION -->*
+        <!-- NAVIGATION -->
         <nav
             class="mt-8 min-h-0 flex-1 space-y-2 overflow-y-auto pb-5"
             aria-label="Navigation exposant"
@@ -244,7 +244,7 @@
                 </a>
             @endforeach
         </nav>
-        *<!-- ASSISTANCE CARD -->*
+        <!-- ASSISTANCE CARD -->
         <div class="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-5">
             <div class="flex items-center gap-3">
                 <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-white/10 text-white">
@@ -280,12 +280,12 @@
             </a>
         </div>
     </aside>
-    *<!-- MAIN AREA -->*
+    <!-- MAIN AREA -->
     <div class="min-h-screen md:pl-72">
-        *<!-- HEADER -->*
+        <!-- HEADER -->
         <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-8">
             <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
-                *<!-- MOBILE MENU -->*
+                <!-- MOBILE MENU -->
                 <details class="relative md:hidden">
                     <summary
                         class="grid size-10 cursor-pointer list-none place-items-center rounded-lg border border-slate-200 text-slate-700"
@@ -318,19 +318,19 @@
                         @endforeach
                     </nav>
                 </details>
-                *<!-- HEADER TITLE -->*
+                <!-- HEADER TITLE -->
                 <p class="hidden text-sm font-medium text-slate-500 sm:block">
                     Espace Exposant · Refrigair Expo 2027
                 </p>
-                *<!-- HEADER RIGHT -->*
+                <!-- HEADER RIGHT -->
                 <div class="ml-auto flex items-center gap-2 sm:gap-4">
-                    *<!-- LIVE NOTIFICATIONS -->*
+                    <!-- LIVE NOTIFICATIONS -->
                     <x-notifications.live
                         :user="$user"
                         index-route="exhibitor.notifications.index"
                         open-route="exhibitor.notifications.open"
                     />
-                    *<!-- ASSISTANCE SHORTCUT -->*
+                    <!-- ASSISTANCE SHORTCUT -->
                     <a href="{{ route('exhibitor.support.index') }}"
                        class="grid size-10 place-items-center rounded-lg text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
                        title="Assistance"
@@ -348,7 +348,7 @@
                             <path d="M4 12a8 8 0 0 1 16 0v5a3 3 0 0 1-3 3h-2v-7h5M4 13h5v7H7a3 3 0 0 1-3-3z"/>
                         </svg>
                     </a>
-                    *<!-- COMPANY / USER -->*
+                    <!-- COMPANY / USER -->
                     <div class="hidden min-w-0 text-right sm:block">
                         <p class="max-w-48 truncate text-sm font-bold text-[#0F2347]">
                             {{ $exhibitor?->company_name ?? $user->name }}
@@ -357,7 +357,7 @@
                             {{ $user->name }}
                         </p>
                     </div>
-                    *<!-- COMPANY LOGO -->*
+                    <!-- COMPANY LOGO -->
                     <a href="{{ route('exhibitor.company.index') }}"
                        class="block size-11 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200 transition hover:ring-blue-400"
                        title="Mon entreprise"
@@ -374,7 +374,7 @@
                             </span>
                         @endif
                     </a>
-                    *<!-- LOGOUT -->*
+                    <!-- LOGOUT -->
                     <form method="POST"
                           action="{{ route('logout') }}">
                         @csrf
@@ -403,7 +403,7 @@
                 </div>
             </div>
         </header>
-        *<!-- PAGE CONTENT -->*
+        <!-- PAGE CONTENT -->
         <main class="mx-auto max-w-[1680px] px-4 py-5 sm:px-6 lg:px-7 lg:py-7 2xl:px-9">
             {{ $slot }}
         </main>

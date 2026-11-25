@@ -30,7 +30,11 @@ class ConferenceSupportInboxController extends Controller
         $status = $filters['status'] ?? 'all';
 
         $base = SlotRequest::query()
-            ->where('status', SlotRequestStatus::Accepted);
+            ->where('status', SlotRequestStatus::Accepted)
+            ->whereNotNull('assigned_slot_id')
+            ->whereHas('assignedSlot', fn ($query) => $query
+                ->whereColumn('slots.exhibitor_id', 'slot_requests.exhibitor_id')
+                ->whereIn('status', ['reserved', 'paid']));
 
         $counts = [
             'total' => (clone $base)->count(),

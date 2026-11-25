@@ -236,19 +236,6 @@
     {{-- COLONNES INDEPENDANTES : pas de vide sous le planning --}}
     {{-- CONFIRMED SESSIONS — SUPPORT + PRIVATE CHAT --}}
 @php
-    $confirmedRequests = $myRequests->filter(fn ($item) =>
-        $item->status === SlotRequestStatus::Accepted && $item->assigned_slot_id !== null
-    )->values();
-
-    $confirmedRequests->load([
-        'assignedSlot.space',
-        'conferenceMessages.sender',
-    ]);
-
-    $selectedConferenceId = (int) request('conference', 0);
-    $selectedConference = $confirmedRequests->firstWhere('id', $selectedConferenceId)
-        ?? $confirmedRequests->first();
-
     $supportLabels = [
         'not_submitted' => ['Non envoyé', 'bg-slate-100 text-slate-700'],
         'pending' => ['À vérifier', 'bg-amber-100 text-amber-800'],
@@ -888,7 +875,7 @@
                     @if($selectedConference->support_review_note)
                         <p class="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">{{ $selectedConference->support_review_note }}</p>
                     @endif
-                    @if($supportState !== 'approved')
+                    @if(in_array($supportState, ['not_submitted', 'revision_requested'], true))
                         <form method="POST" enctype="multipart/form-data" action="{{ route('exhibitor.conferences.collaboration.support', $selectedConference) }}" class="mt-3 space-y-2">
                             @csrf
                             <label class="block text-xs font-bold text-slate-700" for="conference-support-file">{{ $confirmedSlot?->support_path ? 'Remplacer le fichier' : 'Ajouter le support' }}</label>
@@ -898,7 +885,11 @@
                             <button class="w-full rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-blue-700">{{ $confirmedSlot?->support_path ? 'Envoyer une nouvelle version' : 'Envoyer le support' }}</button>
                         </form>
                     @else
-                        <p class="mt-3 rounded-lg bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">Votre support est approuvé.</p>
+                        @if($supportState === 'approved')
+                            <p class="mt-3 rounded-lg bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">Votre support est approuvé.</p>
+                        @else
+                            <p class="mt-3 rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-900">Votre support est en cours de vérification. Vous pourrez le remplacer si une modification est demandée.</p>
+                        @endif
                     @endif
                 </div>
                 <div class="flex min-w-0 flex-col rounded-xl border border-slate-200">

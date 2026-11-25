@@ -110,14 +110,38 @@ class CommercialSlotController extends Controller
     }
 
     /** Le commercial dépose le support à la place du titulaire. */
-    public function uploadSupport(UploadSlotSupportForm $request, Slot $slot): RedirectResponse
-    {
-        $this->service->storeSupport($slot, $request->file('support'));
+    public function uploadSupport(
+    UploadSlotSupportForm $request,
+    Slot $slot
+): RedirectResponse {
+    Gate::authorize('uploadSupport', $slot);
 
+    $managedConference = SlotRequest::query()
+        ->where('assigned_slot_id', $slot->id)
+        ->where('status', SlotRequestStatus::Accepted)
+        ->exists();
+
+    if ($managedConference) {
         return redirect()
             ->route('commercial.slots.index')
-            ->with('status', "Support enregistré pour le créneau {$slot->code}.");
+            ->withErrors([
+                'support' => 'Ce support doit être transmis par l’exposant et validé par le Responsable Conférences.',
+            ]);
     }
+
+    $this->service->storeSupport(
+        $slot,
+    $request->file('support'),
+    $request->user()
+    );
+
+    return redirect()
+        ->route('commercial.slots.index')
+        ->with(
+            'status',
+            "Support enregistré pour le créneau {$slot->code}."
+        );
+}
 
     public function downloadSupport(Request $request, Slot $slot): StreamedResponse
     {
