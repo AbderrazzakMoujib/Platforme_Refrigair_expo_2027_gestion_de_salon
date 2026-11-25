@@ -23,6 +23,11 @@ class SlotRequest extends Model
         'assigned_slot_id',
         'processed_by',
         'processed_at',
+        'support_details',
+'support_review_status',
+'support_review_note',
+'support_reviewed_at',
+'support_reviewed_by',
     ];
 
     protected function casts(): array
@@ -31,6 +36,7 @@ class SlotRequest extends Model
             'type' => SpaceType::class,
             'status' => SlotRequestStatus::class,
             'processed_at' => 'datetime',
+            'support_reviewed_at' => 'datetime',
         ];
     }
 
@@ -72,4 +78,22 @@ class SlotRequest extends Model
             $this->second_choice_slot_id,
         ]));
     }
+
+
+public function conferenceMessages(): HasMany
+{
+    return $this->hasMany(
+        ConferenceMessage::class,
+        'slot_request_id'
+    );
+}
+
+public function supportReviewer(): BelongsTo
+{
+    return $this->belongsTo(
+        User::class,
+        'support_reviewed_by'
+    );
+}
+
 }

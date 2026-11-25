@@ -72,9 +72,19 @@ class CommercialSlotRequestController extends Controller
             ]);
         }
 
-        DB::transaction(fn () => $exhibitor->slotRequests()->create($data + [
+        
+$slotRequest = DB::transaction(
+    fn () => $exhibitor->slotRequests()->create(
+        $data + [
             'status' => SlotRequestStatus::Pending,
-        ]));
+        ]
+    )
+);
+
+app(
+    \App\Services\ConferenceManagerNotificationService::class
+)->newRequest($slotRequest);
+
 
         return redirect()->route('commercial.slot-requests.index')
             ->with('status', 'Votre demande a été envoyée. Vous pourrez suivre son statut dans cette page.');

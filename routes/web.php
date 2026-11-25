@@ -19,6 +19,9 @@ use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
 use App\Http\Controllers\CommercialEquipmentRequestController;
 use App\Http\Controllers\CommercialEquipmentController;
+use App\Http\Controllers\ResponsableConferenceNotificationController;
+use App\Http\Controllers\ConferenceCollaborationController;
+use App\Http\Controllers\ConferenceSupportInboxController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
 use App\Http\Controllers\ResponsableConferenceController;
@@ -368,6 +371,62 @@ Route::get(
     '/historique/export',
     [ResponsableConferenceController::class, 'exportHistory']
 )->name('history.export');
+
+Route::put(
+    '/profil/mot-de-passe',
+    [ResponsableConferenceController::class, 'updatePassword']
+)->middleware('throttle:5,1')
+  ->name('profile.password');
+
+
+Route::get(
+    '/notifications',
+    [ResponsableConferenceNotificationController::class, 'index']
+)->name('notifications.index');
+
+Route::post(
+    '/notifications/read-all',
+    [ResponsableConferenceNotificationController::class, 'markAllRead']
+)->name('notifications.read-all');
+
+Route::post(
+    '/notifications/{notification}/open',
+    [ResponsableConferenceNotificationController::class, 'open']
+)->whereUuid('notification')
+ ->name('notifications.open');
+
+
+Route::get(
+    '/supports',
+    [ConferenceSupportInboxController::class, 'index']
+)->name('supports.index');
+
+Route::get(
+    '/supports/{slotRequest}',
+    [ConferenceCollaborationController::class, 'show']
+)->whereNumber('slotRequest')
+ ->name('supports.show');
+
+Route::post(
+    '/supports/{slotRequest}/review',
+    [ConferenceCollaborationController::class, 'reviewSupport']
+)->whereNumber('slotRequest')
+ ->name('supports.review');
+
+Route::post(
+    '/supports/{slotRequest}/messages',
+    [ConferenceCollaborationController::class, 'sendMessage']
+)->middleware('throttle:20,1')
+ ->whereNumber('slotRequest')
+ ->name('supports.message');
+
+Route::get(
+    '/supports/{slotRequest}/download',
+    [ConferenceCollaborationController::class, 'downloadSupport']
+)->whereNumber('slotRequest')
+ ->name('supports.download');
+
+
 });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
@@ -460,6 +519,33 @@ Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::post('/exposant/conferences/demandes',[\App\Http\Controllers\ExhibitorSlotController::class, 'store'])->middleware('throttle:10,1')->name('exhibitor.slots.request');
     Route::post('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'uploadSupport'])->middleware('throttle:10,1')->whereNumber('slot')->name('exhibitor.slots.support.store');
     Route::get('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'downloadSupport'])->whereNumber('slot')->name('exhibitor.slots.support.download');
+
+Route::get(
+    '/exposant/conferences/demandes/{slotRequest}/suivi',
+    [ConferenceCollaborationController::class, 'show']
+)->whereNumber('slotRequest')
+ ->name('exhibitor.conferences.collaboration.show');
+
+Route::post(
+    '/exposant/conferences/demandes/{slotRequest}/support',
+    [ConferenceCollaborationController::class, 'uploadSupport']
+)->middleware('throttle:10,1')
+ ->whereNumber('slotRequest')
+ ->name('exhibitor.conferences.collaboration.support');
+
+Route::post(
+    '/exposant/conferences/demandes/{slotRequest}/messages',
+    [ConferenceCollaborationController::class, 'sendMessage']
+)->middleware('throttle:20,1')
+ ->whereNumber('slotRequest')
+ ->name('exhibitor.conferences.collaboration.message');
+
+Route::get(
+    '/exposant/conferences/demandes/{slotRequest}/support/download',
+    [ConferenceCollaborationController::class, 'downloadSupport']
+)->whereNumber('slotRequest')
+ ->name('exhibitor.conferences.collaboration.download');
+
 
 });
 

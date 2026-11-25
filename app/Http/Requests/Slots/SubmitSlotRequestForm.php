@@ -37,12 +37,14 @@ class SubmitSlotRequestForm extends FormRequest
                 'integer',
                 'exists:slots,id',
             ],
-            'second_choice_slot_id' => [
-                'required',
-                'integer',
-                'different:first_choice_slot_id',
-                'exists:slots,id',
-            ],
+            
+'second_choice_slot_id' => [
+    'nullable',
+    'integer',
+    'different:first_choice_slot_id',
+    'exists:slots,id',
+],
+
         ];
     }
 

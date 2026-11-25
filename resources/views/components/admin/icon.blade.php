@@ -71,6 +71,12 @@
         @case('zap')
             <path d="m13 2-9 12h7l-1 8 10-12h-7l0-8Z"/>
             @break
+
+@case('camera')
+    <path d="M14 4h-4l-2 3H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-4l-2-3Z"/>
+    <circle cx="12" cy="13" r="3.5"/>
+    @break
+
         @default
             <circle cx="12" cy="12" r="9"/>
             <path d="M12 8v4l3 2"/>

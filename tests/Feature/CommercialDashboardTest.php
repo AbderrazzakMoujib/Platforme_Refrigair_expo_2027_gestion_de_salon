@@ -272,29 +272,116 @@ class CommercialDashboardTest extends TestCase
             ->assertViewHas('trendDays', 30);
     }
 
-    public function test_sidebar_shows_pending_support_and_unread_notification_counts(): void
-    {
-        $commercial = User::factory()->create(['role' => 'commercial']);
-        $other = User::factory()->create(['role' => 'commercial']);
-        $exhibitor = $this->exhibitorFor($commercial, 'ClimaTech', 1);
+    
+public function test_sidebar_shows_unread_support_messages_and_notifications(): void
+{
+    $commercial = User::factory()->create([
+        'role' => 'commercial',
+        'is_active' => true,
+    ]);
 
-        $this->ticketFor($exhibitor, $commercial, 'pending', 'A');
-        $this->ticketFor($exhibitor, $commercial, 'pending', 'B');
-        $this->ticketFor($exhibitor, $commercial, 'resolved', 'C');
-        $this->ticketFor($this->exhibitorFor($other, 'Concurrent', 1), $other, 'pending', 'D');
+    $other = User::factory()->create([
+        'role' => 'commercial',
+        'is_active' => true,
+    ]);
 
-        foreach (range(1, 3) as $i) {
-            $commercial->notifications()->create([
-                'id' => (string) Str::uuid(), 'type' => 'test', 'data' => ['n' => $i],
-            ]);
-        }
+    $exhibitor = $this->exhibitorFor(
+        $commercial,
+        'ClimaTech',
+        1
+    );
 
-        $this->actingAs($commercial)->get(route('commercial.index'))
-            ->assertOk()
-            ->assertSee('data-nav-count="commercial.support.index"', false)
-            ->assertSeeInOrder(['data-nav-count="commercial.support.index"', '2', 'demande(s) en attente'], false)
-            ->assertSeeInOrder(['data-nav-count="commercial.notifications.index"', '3', 'notification(s) non lue(s)'], false);
+    $this->giveAccess($exhibitor);
+
+    $exhibitor->refresh();
+
+    // Deux tickets du commercial connecté.
+    $ticketA = $this->ticketFor(
+        $exhibitor,
+        $commercial,
+        'pending',
+        'A'
+    );
+
+    $ticketB = $this->ticketFor(
+        $exhibitor,
+        $commercial,
+        'pending',
+        'B'
+    );
+
+    // Un ticket résolu sans message non lu.
+    $this->ticketFor(
+        $exhibitor,
+        $commercial,
+        'resolved',
+        'C'
+    );
+
+    // Ticket d'un autre commercial : exclu.
+    $foreign = $this->exhibitorFor(
+        $other,
+        'Concurrent',
+        1
+    );
+
+    $this->giveAccess($foreign);
+    $foreign->refresh();
+
+    $foreignTicket = $this->ticketFor(
+        $foreign,
+        $other,
+        'pending',
+        'D'
+    );
+
+    // Deux messages entrants de l'exposant :
+    // les deux tickets doivent apparaître comme non lus.
+    $ticketA->messages()->create([
+        'user_id' => $exhibitor->user->id,
+        'message' => 'Premier message de test',
+    ]);
+
+    $ticketB->messages()->create([
+        'user_id' => $exhibitor->user->id,
+        'message' => 'Deuxième message de test',
+    ]);
+
+    // Message d'un autre exposant :
+    // ne doit pas influencer le compteur.
+    $foreignTicket->messages()->create([
+        'user_id' => $foreign->user->id,
+        'message' => 'Message étranger',
+    ]);
+
+    // Trois notifications non lues.
+    foreach (range(1, 3) as $i) {
+        $commercial->notifications()->create([
+            'id' => (string) Str::uuid(),
+            'type' => 'test',
+            'data' => ['n' => $i],
+        ]);
     }
+
+    $this->actingAs($commercial)
+        ->get(route('commercial.index'))
+        ->assertOk()
+        ->assertSee(
+            'data-nav-count="commercial.support.index"',
+            false
+        )
+        ->assertSeeInOrder([
+            'data-nav-count="commercial.support.index"',
+            '2',
+            'demande(s) avec message(s) non lu(s)',
+        ], false)
+        ->assertSeeInOrder([
+            'data-nav-count="commercial.notifications.index"',
+            '3',
+            'notification(s) non lue(s)',
+        ], false);
+}
+
 
     public function test_sidebar_hides_counts_when_nothing_is_pending(): void
     {

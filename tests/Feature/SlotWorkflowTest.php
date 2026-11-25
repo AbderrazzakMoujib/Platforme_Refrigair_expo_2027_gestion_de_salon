@@ -23,7 +23,10 @@ class SlotWorkflowTest extends TestCase
 
     private function conferenceManager(): User
     {
-        return User::factory()->create(['role' => 'responsable_conferences', 'is_active' => true]);
+        return User::factory()->create([
+            'role' => 'responsable_conferences',
+            'is_active' => true,
+        ]);
     }
 
     private function requestPayload(array $overrides = []): array
@@ -65,14 +68,15 @@ class SlotWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('C2-1');
 
-        // Les 23 creneaux du PDF sont disponibles
-        // dans un catalogue sans reservations initiales.
         $this->assertDatabaseCount('slots', 23);
 
         $this->assertSame(
             23,
             \App\Models\Slot::query()
-                ->where('status', SlotStatus::Available->value)
+                ->where(
+                    'status',
+                    SlotStatus::Available->value
+                )
                 ->count()
         );
     }
@@ -118,7 +122,6 @@ class SlotWorkflowTest extends TestCase
             $request->second_choice_slot_id
         );
 
-        // Les deux choix sont marques comme demandes.
         $this->get(route('exhibitor.slots.index'))
             ->assertOk()
             ->assertViewHas(
@@ -143,7 +146,10 @@ class SlotWorkflowTest extends TestCase
 
         $this->actingAs($this->conferenceManager())
             ->patch(
-                route('responsable-conferences.requests.accept', $request),
+                route(
+                    'responsable-conferences.requests.accept',
+                    $request
+                ),
                 [
                     'slot_id' => $this->slot('C3-1')->id,
                 ]
@@ -179,7 +185,6 @@ class SlotWorkflowTest extends TestCase
             $request->assigned_slot_id
         );
 
-        // Le deuxieme choix reste libre.
         $this->assertSame(
             SlotStatus::Available,
             $this->slot('C3-2')->status
@@ -191,7 +196,7 @@ class SlotWorkflowTest extends TestCase
         );
     }
 
-    public function test_commercial_can_accept_second_choice(): void
+    public function test_responsable_can_accept_second_choice(): void
     {
         Notification::fake();
 
@@ -210,7 +215,10 @@ class SlotWorkflowTest extends TestCase
 
         $this->actingAs($this->conferenceManager())
             ->patch(
-                route('responsable-conferences.requests.accept', $request),
+                route(
+                    'responsable-conferences.requests.accept',
+                    $request
+                ),
                 [
                     'slot_id' => $this->slot('C3-2')->id,
                 ]
@@ -238,8 +246,10 @@ class SlotWorkflowTest extends TestCase
         );
     }
 
-    public function test_two_different_choices_are_required(): void
+    public function test_second_choice_is_optional_but_must_be_different(): void
     {
+        Notification::fake();
+
         $this->seedSlots();
 
         $exhibitor = $this->exhibitor('ClimaTech');
@@ -248,22 +258,95 @@ class SlotWorkflowTest extends TestCase
 
         unset($payload['second_choice_slot_id']);
 
+        // Un seul créneau doit suffire.
         $this->actingAs($exhibitor->user)
             ->post(
                 route('exhibitor.slots.request'),
                 $payload
             )
-            ->assertSessionHasErrors('second_choice_slot_id');
+            ->assertRedirect(route('exhibitor.slots.index'))
+            ->assertSessionHasNoErrors();
 
+        $request = SlotRequest::query()->firstOrFail();
+
+        $this->assertSame(
+            $this->slot('C3-1')->id,
+            $request->first_choice_slot_id
+        );
+
+        $this->assertNull(
+            $request->second_choice_slot_id
+        );
+
+        $this->assertSame(
+            SlotRequestStatus::Pending,
+            $request->status
+        );
+
+        // Le deuxième choix ne peut pas être
+        // identique au premier choix.
         $this->post(
             route('exhibitor.slots.request'),
             $this->requestPayload([
-                'second_choice_slot_id' => $this->slot('C3-1')->id,
+                'first_choice_slot_id' => $this->slot('C3-3')->id,
+                'second_choice_slot_id' => $this->slot('C3-3')->id,
             ])
-        )
-            ->assertSessionHasErrors('second_choice_slot_id');
+        )->assertSessionHasErrors('second_choice_slot_id');
 
-        $this->assertDatabaseCount('slot_requests', 0);
+        $this->assertDatabaseCount('slot_requests', 1);
+    }
+
+    public function test_request_with_one_choice_can_be_accepted(): void
+    {
+        Notification::fake();
+
+        $this->seedSlots();
+
+        $exhibitor = $this->exhibitor('ClimaTech');
+
+        $payload = $this->requestPayload([
+            'first_choice_slot_id' => $this->slot('C3-4')->id,
+        ]);
+
+        unset($payload['second_choice_slot_id']);
+
+        $this->actingAs($exhibitor->user)
+            ->post(
+                route('exhibitor.slots.request'),
+                $payload
+            )
+            ->assertSessionHasNoErrors();
+
+        $request = SlotRequest::query()->firstOrFail();
+
+        $manager = $this->conferenceManager();
+
+        $this->actingAs($manager)
+            ->patch(
+                route(
+                    'responsable-conferences.requests.accept',
+                    $request
+                ),
+                [
+                    'slot_id' => $this->slot('C3-4')->id,
+                ]
+            )
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            SlotRequestStatus::Accepted,
+            $request->fresh()->status
+        );
+
+        $this->assertSame(
+            $this->slot('C3-4')->id,
+            $request->fresh()->assigned_slot_id
+        );
+
+        $this->assertSame(
+            SlotStatus::Reserved,
+            $this->slot('C3-4')->status
+        );
     }
 
     public function test_choices_must_have_same_space(): void
@@ -315,33 +398,46 @@ class SlotWorkflowTest extends TestCase
         );
 
         $manager = $this->conferenceManager();
+
         $this->actingAs($manager);
 
         $this->patch(
-            route('responsable-conferences.requests.reject', $request),
+            route(
+                'responsable-conferences.requests.reject',
+                $request
+            ),
             []
-        )
-            ->assertSessionHasErrors('rejection_reason');
+        )->assertSessionHasErrors('rejection_reason');
 
         $this->patch(
-            route('responsable-conferences.requests.reject', $request),
+            route(
+                'responsable-conferences.requests.reject',
+                $request
+            ),
             [
                 'rejection_reason' => 'Sujet hors thématique',
             ]
-        )
-            ->assertSessionHasNoErrors();
+        )->assertSessionHasNoErrors();
 
         $this->assertSame(
             SlotRequestStatus::Rejected,
             $request->fresh()->status
         );
 
-        $this->assertDatabaseHas('slot_request_decisions', [
-            'slot_request_id' => $request->id,
-            'decision' => 'rejected',
-            'processed_by' => $manager->id,
-        ]);
-        $this->assertSame($request->fresh()->rejection_reason, \App\Models\SlotRequestDecision::query()->firstOrFail()->reason);
+        $this->assertDatabaseHas(
+            'slot_request_decisions',
+            [
+                'slot_request_id' => $request->id,
+                'decision' => 'rejected',
+                'processed_by' => $manager->id,
+            ]
+        );
+
+        $this->assertSame(
+            $request->fresh()->rejection_reason,
+            \App\Models\SlotRequestDecision::query()
+                ->firstOrFail()->reason
+        );
 
         Notification::assertSentTo(
             $exhibitor->user,
@@ -349,12 +445,14 @@ class SlotWorkflowTest extends TestCase
         );
 
         $this->patch(
-            route('responsable-conferences.requests.accept', $request),
+            route(
+                'responsable-conferences.requests.accept',
+                $request
+            ),
             [
                 'slot_id' => $this->slot('C3-1')->id,
             ]
-        )
-            ->assertForbidden();
+        )->assertForbidden();
     }
 
     public function test_assigning_a_slot_from_planning_notifies_exhibitor(): void
@@ -364,11 +462,18 @@ class SlotWorkflowTest extends TestCase
         $this->seedSlots();
 
         $commercial = $this->commercial();
-        $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
+
+        $exhibitor = $this->exhibitor(
+            'ClimaTech',
+            commercial: $commercial
+        );
 
         $this->actingAs($commercial)
             ->put(
-                route('commercial.slots.update', $this->slot('L2-1')),
+                route(
+                    'commercial.slots.update',
+                    $this->slot('L2-1')
+                ),
                 [
                     'status' => 'reserved',
                     'exhibitor_id' => $exhibitor->id,
@@ -394,7 +499,12 @@ class SlotWorkflowTest extends TestCase
         $this->seedSlots();
 
         $commercial = $this->commercial();
-        $owner = $this->exhibitor('ClimaTech', commercial: $commercial);
+
+        $owner = $this->exhibitor(
+            'ClimaTech',
+            commercial: $commercial
+        );
+
         $other = $this->exhibitor('FroidPlus');
 
         $slot = $this->slot('C2-1');
@@ -404,20 +514,17 @@ class SlotWorkflowTest extends TestCase
             'exhibitor_id' => $owner->id,
         ]);
 
-        $pdf = fn () => UploadedFile::fake()
-            ->create(
-                'presentation.pdf',
-                500,
-                'application/pdf'
-            );
+        $pdf = fn () => UploadedFile::fake()->create(
+            'presentation.pdf',
+            500,
+            'application/pdf'
+        );
 
-        // Option non confirmee.
+        // Option non confirmée.
         $this->actingAs($owner->user)
             ->post(
                 route('exhibitor.slots.support.store', $slot),
-                [
-                    'support' => $pdf(),
-                ]
+                ['support' => $pdf()]
             )
             ->assertForbidden();
 
@@ -425,49 +532,44 @@ class SlotWorkflowTest extends TestCase
             'status' => SlotStatus::Reserved,
         ]);
 
-        // Un autre exposant ne peut pas uploader.
+        // Autre exposant : accès interdit.
         $this->actingAs($other->user)
             ->post(
                 route('exhibitor.slots.support.store', $slot),
-                [
-                    'support' => $pdf(),
-                ]
+                ['support' => $pdf()]
             )
             ->assertForbidden();
 
-        // Format invalide.
+        // Fichier invalide.
         $this->actingAs($owner->user)
             ->post(
                 route('exhibitor.slots.support.store', $slot),
                 [
-                    'support' => UploadedFile::fake()
-                        ->create('notes.docx', 100),
+                    'support' => UploadedFile::fake()->create(
+                        'notes.docx',
+                        100
+                    ),
                 ]
             )
             ->assertSessionHasErrors('support');
 
-        // Fichier trop lourd.
+        // Taille supérieure à 20 Mo.
         $this->post(
             route('exhibitor.slots.support.store', $slot),
             [
-                'support' => UploadedFile::fake()
-                    ->create(
-                        'trop-lourd.pdf',
-                        21000,
-                        'application/pdf'
-                    ),
+                'support' => UploadedFile::fake()->create(
+                    'trop-lourd.pdf',
+                    21000,
+                    'application/pdf'
+                ),
             ]
-        )
-            ->assertSessionHasErrors('support');
+        )->assertSessionHasErrors('support');
 
-        // Upload valide.
+        // Fichier valide.
         $this->post(
             route('exhibitor.slots.support.store', $slot),
-            [
-                'support' => $pdf(),
-            ]
-        )
-            ->assertSessionHasNoErrors();
+            ['support' => $pdf()]
+        )->assertSessionHasNoErrors();
 
         $slot->refresh();
 
@@ -483,8 +585,7 @@ class SlotWorkflowTest extends TestCase
 
         $this->get(
             route('exhibitor.slots.support.download', $slot)
-        )
-            ->assertOk();
+        )->assertOk();
 
         $this->actingAs($other->user)
             ->get(
@@ -507,7 +608,6 @@ class SlotWorkflowTest extends TestCase
 
         $exhibitor = $this->exhibitor('ClimaTech');
 
-        // Conference du 3 fevrier 2027.
         $slot = $this->slot('C2-1');
 
         $slot->update([
@@ -515,9 +615,11 @@ class SlotWorkflowTest extends TestCase
             'exhibitor_id' => $exhibitor->id,
         ]);
 
-        // J-8 avant ouverture : 25 janvier.
+        // J-8 avant ouverture.
         $this->travelTo(
-            \Illuminate\Support\Carbon::parse('2027-01-25 09:00')
+            \Illuminate\Support\Carbon::parse(
+                '2027-01-25 09:00'
+            )
         );
 
         $this->artisan('slots:send-reminders')
@@ -527,9 +629,11 @@ class SlotWorkflowTest extends TestCase
             $exhibitor->user
         );
 
-        // J-7 avant ouverture : 26 janvier.
+        // J-7 avant ouverture.
         $this->travelTo(
-            \Illuminate\Support\Carbon::parse('2027-01-26 09:00')
+            \Illuminate\Support\Carbon::parse(
+                '2027-01-26 09:00'
+            )
         );
 
         $this->artisan('slots:send-reminders')
@@ -544,9 +648,11 @@ class SlotWorkflowTest extends TestCase
             1
         );
 
-        // La veille du creneau : 2 fevrier.
+        // La veille de la conférence.
         $this->travelTo(
-            \Illuminate\Support\Carbon::parse('2027-02-02 09:00')
+            \Illuminate\Support\Carbon::parse(
+                '2027-02-02 09:00'
+            )
         );
 
         $this->artisan('slots:send-reminders')
@@ -567,10 +673,9 @@ class SlotWorkflowTest extends TestCase
     public function test_csv_and_program_exports(): void
     {
         $this->seedSlots();
+
         $commercial = $this->commercial();
 
-        // Reservation de test uniquement.
-        // Aucune entreprise fictive dans le catalogue.
         $this->slot('C2-2')->update([
             'status' => SlotStatus::Reserved,
             'exhibitor_id' => null,
@@ -582,15 +687,14 @@ class SlotWorkflowTest extends TestCase
 
         $csv = $this->get(
             route('commercial.slots.export.csv')
-        )
-            ->assertOk();
+        )->assertOk();
 
         $content = $csv->streamedContent();
 
         $this->assertStringContainsString(
-    'C2-2;"Salle de conférence";03/02/2027;10:30;11:30;1500,00;Réservé;"Societe Test"',
-    $content
-);
+            'C2-2;"Salle de conférence";03/02/2027;10:30;11:30;1500,00;Réservé;"Societe Test"',
+            $content
+        );
 
         $this->assertStringContainsString(
             'C2-1;"Salle de conférence";03/02/2027;09:30;10:30;1500,00;Disponible',
@@ -600,8 +704,7 @@ class SlotWorkflowTest extends TestCase
         foreach (['fr', 'en'] as $locale) {
             $response = $this->get(
                 route('commercial.slots.export.pdf', $locale)
-            )
-                ->assertOk();
+            )->assertOk();
 
             if (class_exists(
                 \Barryvdh\DomPDF\Facade\Pdf::class

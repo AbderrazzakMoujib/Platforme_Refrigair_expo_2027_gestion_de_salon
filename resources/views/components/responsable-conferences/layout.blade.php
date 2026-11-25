@@ -33,7 +33,22 @@
             'route' => 'responsable-conferences.profile',
             'icon' => 'settings',
         ],
+
+        [
+            'label' => 'Notifications',
+            'route' => 'responsable-conferences.notifications.index',
+            'icon' => 'bell',
+        ],
+
+
+[
+    'label' => 'Supports & Messagerie',
+    'route' => 'responsable-conferences.supports.index',
+    'icon' => 'inbox',
+],
+
     ];
+
 @endphp
 
 <!DOCTYPE html>
@@ -245,6 +260,14 @@
 
                 <!-- HEADER RIGHT -->
                 <div class="ml-auto flex items-center gap-3">
+
+{{-- LIVE NOTIFICATIONS --}}
+<x-notifications.live
+    :user="$user"
+    index-route="responsable-conferences.notifications.index"
+    open-route="responsable-conferences.notifications.open"
+/>
+
 
                     <span class="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 lg:inline-flex">
 

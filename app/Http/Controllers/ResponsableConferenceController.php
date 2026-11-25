@@ -731,6 +731,9 @@ private function confirmedQuery(array $filters): Builder
     {
         try {
             $slot = $service->accept($slotRequest, $request->integer('slot_id'), $request->user());
+            app(
+    \App\Services\ConferenceManagerNotificationService::class
+)->accepted($slotRequest->fresh());
         } catch (ValidationException $exception) {
             throw $exception->errorBag('slot-request');
         }
@@ -742,6 +745,9 @@ private function confirmedQuery(array $filters): Builder
     {
         try {
             $service->reject($slotRequest, $request->validated('rejection_reason'), $request->user());
+            app(
+    \App\Services\ConferenceManagerNotificationService::class
+)->rejected($slotRequest->fresh());
         } catch (ValidationException $exception) {
             throw $exception->errorBag('slot-request');
         }
@@ -754,56 +760,99 @@ private function confirmedQuery(array $filters): Builder
         return view('responsable-conferences.profile', ['user' => $request->user()]);
     }
 
-    public function updateProfile(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'current_password' => ['nullable', 'required_with:password', 'current_password'],
-            'password' => ['nullable', 'confirmed', Password::min(8)],
-            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'remove_profile_photo' => ['nullable', 'boolean'],
-        ]);
+    
+public function updateProfile(Request $request): RedirectResponse
+{
+    $user = $request->user();
 
-        unset($data['profile_photo'], $data['remove_profile_photo']);
-        $previousPhoto = $user->profile_photo;
-        $newPhoto = $request->hasFile('profile_photo')
-            ? ProfilePhotoStorage::store($request->file('profile_photo'))
-            : null;
+    $data = $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => [
+            'required',
+            'email',
+            'max:255',
+            Rule::unique('users', 'email')->ignore($user->id),
+        ],
+        'phone' => ['nullable', 'string', 'max:30'],
+        'profile_photo' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:2048',
+        ],
+        'remove_profile_photo' => ['nullable', 'boolean'],
+    ]);
 
-        if ($newPhoto) {
-            $data['profile_photo'] = $newPhoto;
-        } elseif ($request->boolean('remove_profile_photo')) {
-            $data['profile_photo'] = null;
-        }
+    $previousPhoto = $user->profile_photo;
 
-        $user->name = $data['name'];
-        $user->email = $data['email'];
-        if (filled($data['password'] ?? null)) {
-            $user->password = Hash::make($data['password']);
-        }
+    $newPhoto = $request->hasFile('profile_photo')
+        ? ProfilePhotoStorage::store(
+            $request->file('profile_photo')
+        )
+        : null;
 
-        if (array_key_exists('profile_photo', $data)) {
-            $user->profile_photo = $data['profile_photo'];
-        }
+    $user->name = $data['name'];
+    $user->email = $data['email'];
+    $user->phone = $data['phone'] ?? null;
 
-        try {
-            if (! $user->save()) {
-                throw new \RuntimeException('Votre profil n’a pas pu être mis à jour.');
-            }
-        } catch (\Throwable $exception) {
-            if ($newPhoto) {
-                Storage::disk('public')->delete($newPhoto);
-            }
-
-            throw $exception;
-        }
-
-        if ($previousPhoto !== $user->profile_photo) {
-            ProfilePhotoStorage::deleteIfUnreferenced($previousPhoto, $user);
-        }
-
-        return back()->with('status', 'Votre profil a été mis à jour.');
+    if ($newPhoto) {
+        $user->profile_photo = $newPhoto;
+    } elseif ($request->boolean('remove_profile_photo')) {
+        $user->profile_photo = null;
     }
+
+    try {
+        if (! $user->save()) {
+            throw new \RuntimeException(
+                'Impossible de mettre à jour le profil.'
+            );
+        }
+    } catch (\Throwable $exception) {
+        if ($newPhoto) {
+            Storage::disk('public')->delete($newPhoto);
+        }
+
+        throw $exception;
+    }
+
+    if ($previousPhoto !== $user->profile_photo) {
+        ProfilePhotoStorage::deleteIfUnreferenced(
+            $previousPhoto,
+            $user
+        );
+    }
+
+    return back()->with(
+        'status',
+        'Vos informations ont été mises à jour.'
+    );
+}
+
+
+public function updatePassword(Request $request): RedirectResponse
+{
+    $user = $request->user();
+
+    $data = $request->validateWithBag('passwordUpdate', [
+        'current_password' => [
+            'required',
+            'current_password',
+        ],
+        'password' => [
+            'required',
+            'confirmed',
+            Password::min(8),
+        ],
+    ]);
+
+    $user->password = Hash::make($data['password']);
+    $user->save();
+
+    return back()->with(
+        'password_status',
+        'Votre mot de passe a été modifié avec succès.'
+    );
+}
+
+
 }

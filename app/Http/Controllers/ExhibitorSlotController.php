@@ -66,9 +66,17 @@ class ExhibitorSlotController extends Controller
     {
         $exhibitor = $request->user()->exhibitorProfile()->firstOrFail();
 
-        $exhibitor->slotRequests()->create($request->validated() + [
-            'status' => SlotRequestStatus::Pending,
-        ]);
+        
+$slotRequest = $exhibitor->slotRequests()->create(
+    $request->validated() + [
+        'status' => SlotRequestStatus::Pending,
+    ]
+);
+
+app(
+    \App\Services\ConferenceManagerNotificationService::class
+)->newRequest($slotRequest);
+
 
         return redirect()
             ->route('exhibitor.slots.index')
