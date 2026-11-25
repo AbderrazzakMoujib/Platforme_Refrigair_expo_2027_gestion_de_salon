@@ -20,67 +20,712 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use App\Enums\SlotStatus;
+use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResponsableConferenceController extends Controller
 {
-    public function dashboard(): View
-    {
-        return view('responsable-conferences.dashboard', [
-            'pendingCount' => SlotRequest::query()->where('status', SlotRequestStatus::Pending)->count(),
-            'confirmedCount' => SlotRequest::query()->where('status', SlotRequestStatus::Accepted)->count(),
-            'decisionCount' => SlotRequestDecision::query()->count(),
-            'upcomingSlots' => Slot::query()->with('space:id,type,name')->ordered()->limit(8)->get(),
+    
+
+
+public function dashboard(): View
+{
+    $pendingCount = SlotRequest::query()
+        ->where('status', SlotRequestStatus::Pending)
+        ->count();
+
+    $confirmedCount = SlotRequest::query()
+        ->where('status', SlotRequestStatus::Accepted)
+        ->count();
+
+    $rejectedCount = SlotRequest::query()
+        ->where('status', SlotRequestStatus::Rejected)
+        ->count();
+
+    $decisionCount = SlotRequestDecision::query()->count();
+
+    $totalSlots = Slot::query()->count();
+
+    $slotStatusCounts = [
+        'available' => Slot::query()
+            ->where('status', SlotStatus::Available)
+            ->count(),
+
+        'option' => Slot::query()
+            ->where('status', SlotStatus::Option)
+            ->count(),
+
+        'reserved' => Slot::query()
+            ->where('status', SlotStatus::Reserved)
+            ->count(),
+
+        'paid' => Slot::query()
+            ->where('status', SlotStatus::Paid)
+            ->count(),
+    ];
+
+    $availableSlots = $slotStatusCounts['available'];
+
+    $occupiedSlots = $totalSlots - $availableSlots;
+
+    $occupancyRate = $totalSlots > 0
+        ? round(($occupiedSlots / $totalSlots) * 100)
+        : 0;
+
+    $upcomingSlots = Slot::query()
+        ->with([
+            'space:id,type,name',
+            'exhibitor:id,company_name,logo',
+        ])
+        ->whereDate('date', '>=', Carbon::today())
+        ->ordered()
+        ->limit(6)
+        ->get();
+
+    $recentRequests = SlotRequest::query()
+        ->with([
+            'exhibitor:id,company_name,commercial_id,logo',
+            'exhibitor.commercial:id,name',
+            'firstChoice:id,code,date,start_time,end_time,status',
+            'secondChoice:id,code,date,start_time,end_time,status',
+        ])
+        ->where('status', SlotRequestStatus::Pending)
+        ->latest('id')
+        ->limit(5)
+        ->get();
+
+    $recentDecisions = SlotRequestDecision::query()
+        ->with('assignedSlot:id,code')
+        ->orderByDesc('processed_at')
+        ->orderByDesc('id')
+        ->limit(5)
+        ->get();
+
+    return view('responsable-conferences.dashboard', [
+        'pendingCount' => $pendingCount,
+        'confirmedCount' => $confirmedCount,
+        'rejectedCount' => $rejectedCount,
+        'decisionCount' => $decisionCount,
+        'totalSlots' => $totalSlots,
+        'availableSlots' => $availableSlots,
+        'occupiedSlots' => $occupiedSlots,
+        'occupancyRate' => $occupancyRate,
+        'slotStatusCounts' => $slotStatusCounts,
+        'upcomingSlots' => $upcomingSlots,
+        'recentRequests' => $recentRequests,
+        'recentDecisions' => $recentDecisions,
+    ]);
+}
+
+
+    
+public function planning(): View
+{
+    $spaces = Space::query()
+        ->orderBy('id')
+        ->get();
+
+    $slots = Slot::query()
+        ->with([
+            'space:id,type,name',
+            'exhibitor:id,company_name,commercial_id,logo',
+            'exhibitor.commercial:id,name',
+            'commercial:id,name',
+        ])
+        ->ordered()
+        ->get();
+
+    return view('responsable-conferences.planning', [
+        'spaces' => $spaces,
+        'slots' => $slots,
+    ]);
+}
+
+
+    
+public function requests(Request $request): View
+{
+    Gate::authorize('viewAny', SlotRequest::class);
+
+    $filters = $request->validate([
+        'status' => [
+            'nullable',
+            Rule::in(['pending', 'accepted', 'rejected', 'all']),
+        ],
+        'search' => ['nullable', 'string', 'max:150'],
+        'type' => [
+            'nullable',
+            Rule::in(['conference', 'lounge']),
+        ],
+        'space_id' => [
+            'nullable',
+            'integer',
+            'exists:spaces,id',
+        ],
+        'period' => [
+            'nullable',
+            Rule::in(['all', '7d', '30d']),
+        ],
+    ]);
+
+    $status = $filters['status'] ?? 'pending';
+    $search = trim($filters['search'] ?? '');
+    $type = $filters['type'] ?? '';
+    $spaceId = $filters['space_id'] ?? null;
+    $period = $filters['period'] ?? 'all';
+
+    // Statistiques globales, indépendantes des filtres.
+    $statusCounts = SlotRequest::query()
+        ->selectRaw('status, COUNT(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
+
+    $pendingCount = (int) ($statusCounts['pending'] ?? 0);
+    $acceptedCount = (int) ($statusCounts['accepted'] ?? 0);
+    $rejectedCount = (int) ($statusCounts['rejected'] ?? 0);
+
+    $totalCount = $pendingCount
+        + $acceptedCount
+        + $rejectedCount;
+
+    $spaces = Space::query()
+        ->orderBy('name')
+        ->get();
+
+    $query = SlotRequest::query()
+        ->with([
+            'exhibitor:id,company_name,commercial_id,logo',
+            'exhibitor.commercial:id,name',
+            'firstChoice:id,code,date,start_time,end_time,status,space_id',
+            'firstChoice.space:id,name,type',
+            'secondChoice:id,code,date,start_time,end_time,status,space_id',
+            'secondChoice.space:id,name,type',
+            'assignedSlot:id,code',
+            'processor:id,name',
         ]);
+
+    if ($status !== 'all') {
+        $query->where('status', $status);
     }
 
-    public function planning(): View
-    {
-        return view('responsable-conferences.planning', [
-            'spaces' => Space::query()->orderBy('id')->get(),
-            'slots' => Slot::query()->with(['space:id,type,name', 'exhibitor:id,company_name,commercial_id', 'exhibitor.commercial:id,name', 'commercial:id,name'])->ordered()->get(),
-        ]);
+    if ($search !== '') {
+        $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+                ->orWhere('summary', 'like', "%{$search}%")
+                ->orWhere('speakers', 'like', "%{$search}%")
+                ->orWhereHas('exhibitor', function ($exhibitor) use ($search) {
+                    $exhibitor->where('company_name', 'like', "%{$search}%")
+                        ->orWhere('contact_name', 'like', "%{$search}%");
+                });
+        });
     }
 
-    public function requests(Request $request): View
-    {
-        Gate::authorize('viewAny', SlotRequest::class);
-        $status = $request->validate([
-            'status' => ['nullable', Rule::in(['pending', 'accepted', 'rejected', 'all'])],
-        ])['status'] ?? SlotRequestStatus::Pending->value;
-
-        $requests = SlotRequest::query()
-            ->with(['exhibitor:id,company_name,commercial_id', 'exhibitor.commercial:id,name', 'firstChoice:id,code,date,start_time,end_time,status', 'secondChoice:id,code,date,start_time,end_time,status', 'assignedSlot:id,code', 'processor:id,name'])
-            ->when($status !== 'all', fn ($query) => $query->where('status', $status))
-            ->latest('id')
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('responsable-conferences.requests', compact('requests', 'status'));
+    if ($type !== '') {
+        $query->where('type', $type);
     }
 
-    public function history(): View
-    {
-        Gate::authorize('viewAny', SlotRequest::class);
-        $decisions = SlotRequestDecision::query()
-            ->with(['assignedSlot:id,code'])
-            ->orderByDesc('processed_at')
-            ->orderByDesc('id')
-            ->paginate(20);
-
-        return view('responsable-conferences.history', compact('decisions'));
+    if ($spaceId) {
+        $query->where(function ($q) use ($spaceId) {
+            $q->whereHas('firstChoice', function ($slot) use ($spaceId) {
+                $slot->where('space_id', $spaceId);
+            })->orWhereHas('secondChoice', function ($slot) use ($spaceId) {
+                $slot->where('space_id', $spaceId);
+            });
+        });
     }
 
-    public function confirmed(): View
-    {
-        Gate::authorize('viewAny', SlotRequest::class);
-        $confirmations = SlotRequestDecision::query()
-            ->with('assignedSlot:id,code')
-            ->where('decision', SlotRequestStatus::Accepted->value)
-            ->orderByDesc('processed_at')
-            ->paginate(20);
-
-        return view('responsable-conferences.confirmed', compact('confirmations'));
+    if ($period === '7d') {
+        $query->where('created_at', '>=', now()->subDays(7));
+    } elseif ($period === '30d') {
+        $query->where('created_at', '>=', now()->subDays(30));
     }
+
+    $requests = $query
+        ->latest('id')
+        ->paginate(10)
+        ->withQueryString();
+
+    return view('responsable-conferences.requests', [
+        'requests' => $requests,
+        'status' => $status,
+        'search' => $search,
+        'type' => $type,
+        'spaceId' => $spaceId,
+        'period' => $period,
+        'spaces' => $spaces,
+        'pendingCount' => $pendingCount,
+        'acceptedCount' => $acceptedCount,
+        'rejectedCount' => $rejectedCount,
+        'totalCount' => $totalCount,
+    ]);
+}
+
+
+    
+public function history(Request $request): View
+{
+    Gate::authorize('viewAny', SlotRequest::class);
+
+    $filters = $this->historyFilters($request);
+
+    $baseQuery = SlotRequestDecision::query();
+
+    $totalDecisions = (clone $baseQuery)->count();
+
+    $acceptedCount = (clone $baseQuery)
+        ->where('decision', SlotRequestStatus::Accepted->value)
+        ->count();
+
+    $rejectedCount = (clone $baseQuery)
+        ->where('decision', SlotRequestStatus::Rejected->value)
+        ->count();
+
+    $firstDecision = (clone $baseQuery)->min('processed_at');
+    $lastDecision = (clone $baseQuery)->max('processed_at');
+
+    $periodLabel = $firstDecision && $lastDecision
+        ? \Illuminate\Support\Carbon::parse($firstDecision)
+            ->locale('fr')->isoFormat('MMM YYYY')
+            .' – '.
+            \Illuminate\Support\Carbon::parse($lastDecision)
+            ->locale('fr')->isoFormat('MMM YYYY')
+        : 'Aucune décision';
+
+    $spaces = Space::query()
+        ->orderBy('name')
+        ->get();
+
+    $decisions = $this->historyQuery($filters)
+        ->with([
+            'request.exhibitor',
+            'request.exhibitor.commercial',
+            'assignedSlot.space',
+            'assignedSlot.exhibitor',
+            'assignedSlot.commercial',
+            'processor:id,name',
+        ])
+        ->orderByDesc('processed_at')
+        ->orderByDesc('id')
+        ->paginate(10)
+        ->withQueryString();
+
+    return view('responsable-conferences.history', [
+        'decisions' => $decisions,
+        'spaces' => $spaces,
+        'filters' => $filters,
+        'totalDecisions' => $totalDecisions,
+        'acceptedCount' => $acceptedCount,
+        'rejectedCount' => $rejectedCount,
+        'periodLabel' => $periodLabel,
+    ]);
+}
+
+public function exportHistory(Request $request): StreamedResponse
+{
+    Gate::authorize('viewAny', SlotRequest::class);
+
+    $filters = $this->historyFilters($request);
+
+    $filename = 'refrigair-historique-decisions-'
+        . now()->format('Ymd-His') . '.csv';
+
+    return response()->streamDownload(
+        function () use ($filters) {
+            $output = fopen('php://output', 'w');
+
+            // Compatibilité Excel UTF-8.
+            fwrite($output, "\xEF\xBB\xBF");
+
+            fputcsv($output, [
+                'Référence',
+                'Entreprise',
+                'Sujet',
+                'Type',
+                'Décision',
+                'Espace',
+                'Créneau',
+                'Date du créneau',
+                'Commercial',
+                'Traité par',
+                'Date de décision',
+                'Motif',
+            ], ';');
+
+            $this->historyQuery($filters)
+                ->with([
+                    'request.exhibitor.commercial',
+                    'assignedSlot.space',
+                ])
+                ->chunkById(200, function ($items) use ($output) {
+
+                    foreach ($items as $decision) {
+                        $slot = $decision->assignedSlot;
+
+                        $commercial = $decision->request
+                            ?->exhibitor
+                            ?->commercial
+                            ?->name ?? '';
+
+                        $values = [
+                            'DR-' . $decision->slot_request_id,
+                            $decision->exhibitor_name,
+                            $decision->request_title,
+                            $decision->request_type,
+                            $decision->decision === 'accepted'
+                                ? 'Validée'
+                                : 'Refusée',
+                            $slot?->space?->name
+                                ?? $slot?->space?->type?->label(),
+                            $slot?->code,
+                            $slot?->date?->format('d/m/Y'),
+                            $commercial,
+                            $decision->processor_name,
+                            $decision->processed_at?->format('d/m/Y H:i'),
+                            $decision->reason,
+                        ];
+
+                        // Protection contre les formules Excel.
+                        $safeValues = array_map(
+                            function ($value) {
+                                $value = (string) ($value ?? '');
+
+                                if (preg_match(
+                                    '/^[\s\x00-\x1F]*[=+\-@]/u',
+                                    $value
+                                )) {
+                                    return "'" . $value;
+                                }
+
+                                return $value;
+                            },
+                            $values
+                        );
+
+                        fputcsv($output, $safeValues, ';');
+                    }
+                });
+
+            fclose($output);
+        },
+        $filename,
+        ['Content-Type' => 'text/csv; charset=UTF-8']
+    );
+}
+
+private function historyFilters(Request $request): array
+{
+    return $request->validate([
+        'search' => ['nullable', 'string', 'max:150'],
+        'decision' => [
+            'nullable',
+            Rule::in(['accepted', 'rejected']),
+        ],
+        'type' => [
+            'nullable',
+            Rule::in(['conference', 'lounge']),
+        ],
+        'space_id' => [
+            'nullable',
+            'integer',
+            'exists:spaces,id',
+        ],
+        'period' => [
+            'nullable',
+            Rule::in(['all', '7d', '30d']),
+        ],
+    ]);
+}
+
+private function historyQuery(array $filters): Builder
+{
+    $query = SlotRequestDecision::query();
+
+    $search = trim($filters['search'] ?? '');
+
+    if ($search !== '') {
+        $query->where(function (Builder $q) use ($search) {
+            $q->where('exhibitor_name', 'like', "%{$search}%")
+                ->orWhere('request_title', 'like', "%{$search}%")
+                ->orWhere('processor_name', 'like', "%{$search}%")
+                ->orWhere('reason', 'like', "%{$search}%")
+                ->orWhereHas(
+                    'request.exhibitor.commercial',
+                    fn ($commercial) => $commercial
+                        ->where('name', 'like', "%{$search}%")
+                );
+        });
+    }
+
+    if (!empty($filters['decision'])) {
+        $query->where('decision', $filters['decision']);
+    }
+
+    if (!empty($filters['type'])) {
+        $query->where('request_type', $filters['type']);
+    }
+
+    if (!empty($filters['space_id'])) {
+        $spaceId = (int) $filters['space_id'];
+
+        // Décision confirmée : créneau attribué.
+        // Décision refusée : choix initialement demandés.
+        $query->where(function (Builder $q) use ($spaceId) {
+            $q->whereHas(
+                'assignedSlot',
+                fn ($slot) => $slot->where('space_id', $spaceId)
+            )
+            ->orWhereHas(
+                'request.firstChoice',
+                fn ($slot) => $slot->where('space_id', $spaceId)
+            )
+            ->orWhereHas(
+                'request.secondChoice',
+                fn ($slot) => $slot->where('space_id', $spaceId)
+            );
+        });
+    }
+
+    $period = $filters['period'] ?? 'all';
+
+    if ($period === '7d') {
+        $query->where('processed_at', '>=', now()->subDays(7));
+    }
+
+    if ($period === '30d') {
+        $query->where('processed_at', '>=', now()->subDays(30));
+    }
+
+    return $query;
+}
+
+
+    
+public function confirmed(Request $request): View
+{
+    Gate::authorize('viewAny', SlotRequest::class);
+
+    $filters = $this->confirmedFilters($request);
+
+    $baseQuery = SlotRequestDecision::query()
+        ->where('decision', SlotRequestStatus::Accepted->value);
+
+    $totalConfirmed = (clone $baseQuery)->count();
+
+    $conferenceCount = (clone $baseQuery)
+        ->where('request_type', 'conference')
+        ->count();
+
+    $loungeCount = (clone $baseQuery)
+        ->where('request_type', 'lounge')
+        ->count();
+
+    $companiesCount = (clone $baseQuery)
+        ->whereNotNull('exhibitor_id')
+        ->distinct()
+        ->count('exhibitor_id');
+
+    $spaces = Space::query()
+        ->orderBy('name')
+        ->get();
+
+    $confirmations = $this->confirmedQuery($filters)
+        ->with([
+            'request.exhibitor',
+            'request.exhibitor.commercial',
+            'assignedSlot.space',
+            'assignedSlot.exhibitor',
+            'assignedSlot.exhibitor.commercial',
+            'assignedSlot.commercial',
+        ])
+        ->orderByDesc('processed_at')
+        ->orderByDesc('id')
+        ->paginate(10)
+        ->withQueryString();
+
+    return view('responsable-conferences.confirmed', [
+        'confirmations' => $confirmations,
+        'spaces' => $spaces,
+        'filters' => $filters,
+        'totalConfirmed' => $totalConfirmed,
+        'conferenceCount' => $conferenceCount,
+        'loungeCount' => $loungeCount,
+        'companiesCount' => $companiesCount,
+    ]);
+}
+
+public function exportConfirmed(Request $request): StreamedResponse
+{
+    Gate::authorize('viewAny', SlotRequest::class);
+
+    $filters = $this->confirmedFilters($request);
+
+    $filename = 'refrigair-reservations-confirmees-'
+        . now()->format('Ymd-His') . '.csv';
+
+    return response()->streamDownload(
+        function () use ($filters) {
+            $output = fopen('php://output', 'w');
+
+            // UTF-8 BOM pour Excel.
+            fwrite($output, "\xEF\xBB\xBF");
+
+            fputcsv($output, [
+                'Référence',
+                'Entreprise',
+                'Sujet',
+                'Type',
+                'Espace',
+                'Code créneau',
+                'Date conférence',
+                'Début',
+                'Fin',
+                'Commercial',
+                'Validé par',
+                'Date validation',
+            ], ';');
+
+            $this->confirmedQuery($filters)
+                ->with([
+                    'request.exhibitor.commercial',
+                    'assignedSlot.space',
+                    'assignedSlot.commercial',
+                ])
+                ->orderBy('id')
+                ->chunkById(200, function ($items) use ($output) {
+                    foreach ($items as $item) {
+                        $slot = $item->assignedSlot;
+
+                        $commercial = $item->request
+                            ?->exhibitor
+                            ?->commercial
+                            ?->name
+                            ?? $slot?->commercial?->name
+                            ?? '';
+
+                        $values = [
+                            'RC-' . $item->id,
+                            $item->exhibitor_name,
+                            $item->request_title,
+                            $item->request_type,
+                            $slot?->space?->name
+                                ?? $slot?->space?->type?->label(),
+                            $slot?->code,
+                            $slot?->date?->format('d/m/Y'),
+                            $slot?->start_label,
+                            $slot?->end_label,
+                            $commercial,
+                            $item->processor_name,
+                            $item->processed_at?->format('d/m/Y H:i'),
+                        ];
+
+                        // Évite l'interprétation de formules dans Excel.
+                        $safeValues = array_map(
+                            function ($value) {
+                                $value = (string) ($value ?? '');
+
+                                if (preg_match(
+                                    '/^[\s\x00-\x1F]*[=+\-@]/u',
+                                    $value
+                                )) {
+                                    return "'" . $value;
+                                }
+
+                                return $value;
+                            },
+                            $values
+                        );
+
+                        fputcsv($output, $safeValues, ';');
+                    }
+                });
+
+            fclose($output);
+        },
+        $filename,
+        ['Content-Type' => 'text/csv; charset=UTF-8']
+    );
+}
+
+private function confirmedFilters(Request $request): array
+{
+    return $request->validate([
+        'search' => ['nullable', 'string', 'max:150'],
+        'type' => [
+            'nullable',
+            Rule::in(['conference', 'lounge']),
+        ],
+        'space_id' => [
+            'nullable',
+            'integer',
+            'exists:spaces,id',
+        ],
+        'period' => [
+            'nullable',
+            Rule::in(['all', '7d', '30d']),
+        ],
+    ]);
+}
+
+private function confirmedQuery(array $filters): Builder
+{
+    $query = SlotRequestDecision::query()
+        ->where('decision', SlotRequestStatus::Accepted->value);
+
+    $search = trim($filters['search'] ?? '');
+
+    if ($search !== '') {
+        $query->where(function (Builder $q) use ($search) {
+            $q->where('exhibitor_name', 'like', "%{$search}%")
+                ->orWhere(
+                    'request_title',
+                    'like',
+                    "%{$search}%"
+                )
+                ->orWhere('processor_name', 'like', "%{$search}%")
+                ->orWhereHas(
+                    'request.exhibitor.commercial',
+                    fn ($commercial) => $commercial
+                        ->where('name', 'like', "%{$search}%")
+                );
+        });
+    }
+
+    if (!empty($filters['type'])) {
+        $query->where('request_type', $filters['type']);
+    }
+
+    if (!empty($filters['space_id'])) {
+        $spaceId = (int) $filters['space_id'];
+
+        $query->whereHas(
+            'assignedSlot',
+            fn ($slot) => $slot->where('space_id', $spaceId)
+        );
+    }
+
+    $period = $filters['period'] ?? 'all';
+
+    if ($period === '7d') {
+        $query->where(
+            'processed_at',
+            '>=',
+            now()->subDays(7)
+        );
+    }
+
+    if ($period === '30d') {
+        $query->where(
+            'processed_at',
+            '>=',
+            now()->subDays(30)
+        );
+    }
+
+    return $query;
+}
+
 
     public function accept(AcceptSlotRequestForm $request, SlotRequest $slotRequest, SlotService $service): RedirectResponse
     {

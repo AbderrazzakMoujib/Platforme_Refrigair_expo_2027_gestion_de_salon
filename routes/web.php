@@ -359,6 +359,15 @@ Route::middleware(['auth', 'role:responsable_conferences'])->prefix('responsable
     Route::get('/historique', [ResponsableConferenceController::class, 'history'])->name('history');
     Route::get('/profil', [ResponsableConferenceController::class, 'profile'])->name('profile');
     Route::put('/profil', [ResponsableConferenceController::class, 'updateProfile'])->name('profile.update');
+    Route::get(
+    '/reservations-confirmees/export',
+    [ResponsableConferenceController::class, 'exportConfirmed']
+)->name('confirmed.export');
+
+Route::get(
+    '/historique/export',
+    [ResponsableConferenceController::class, 'exportHistory']
+)->name('history.export');
 });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
