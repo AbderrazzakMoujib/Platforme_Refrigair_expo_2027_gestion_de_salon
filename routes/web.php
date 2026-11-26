@@ -369,10 +369,17 @@ Route::patch(
 Route::middleware(['auth', 'role:responsable_conferences'])->prefix('responsable-conferences')->name('responsable-conferences.')->group(function (): void {
     Route::get('/', [ResponsableConferenceController::class, 'dashboard'])->name('dashboard');
     Route::get('/planning', [ResponsableConferenceController::class, 'planning'])->name('planning');
+    Route::get('/planning/export/programme-{locale}.pdf', [\App\Http\Controllers\SlotExportController::class, 'pdf'])
+        ->whereIn('locale', ['fr', 'en'])->name('planning.export.pdf');
+    Route::post('/planning/reservations', [ResponsableConferenceController::class, 'storeReservation'])
+        ->middleware('throttle:20,1')->name('reservations.store');
+    Route::put('/planning/reservations/{slot}', [ResponsableConferenceController::class, 'updateReservation'])->whereNumber('slot')->name('reservations.update');
+    Route::delete('/planning/reservations/{slot}', [ResponsableConferenceController::class, 'destroyReservation'])->whereNumber('slot')->name('reservations.destroy');
     Route::get('/demandes', [ResponsableConferenceController::class, 'requests'])->name('requests.index');
     Route::get('/reservations-confirmees', [ResponsableConferenceController::class, 'confirmed'])->name('confirmed');
     Route::patch('/demandes/{slotRequest}/accepter', [ResponsableConferenceController::class, 'accept'])->whereNumber('slotRequest')->name('requests.accept');
     Route::patch('/demandes/{slotRequest}/refuser', [ResponsableConferenceController::class, 'reject'])->whereNumber('slotRequest')->name('requests.reject');
+    Route::delete('/demandes/{slotRequest}', [ResponsableConferenceController::class, 'cancelRequest'])->whereNumber('slotRequest')->name('requests.destroy');
     Route::get('/historique', [ResponsableConferenceController::class, 'history'])->name('history');
     Route::get('/profil', [ResponsableConferenceController::class, 'profile'])->name('profile');
     Route::put('/profil', [ResponsableConferenceController::class, 'updateProfile'])->name('profile.update');

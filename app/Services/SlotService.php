@@ -50,6 +50,12 @@ class SlotService
             /** @var Slot $locked */
             $locked = Slot::query()->lockForUpdate()->findOrFail($slot->id);
 
+            if ($commercial->role === UserRole::Commercial && ! $locked->status->isTaken()) {
+                throw ValidationException::withMessages([
+                    'slot_id' => 'La création de réservations est réservée au Responsable Conférences.',
+                ]);
+            }
+
             $status = SlotStatus::from($data['status']);
             $exhibitorId = ! empty($data['exhibitor_id']) ? (int) $data['exhibitor_id'] : null;
             $exhibitorName = $exhibitorId ? null : (trim((string) ($data['exhibitor_name'] ?? '')) ?: null);
@@ -83,10 +89,17 @@ class SlotService
                 $this->resetHolderData($locked);
             }
 
+            $slotCommercialId = match (true) {
+                $status === SlotStatus::Available => null,
+                $commercial->role === UserRole::Commercial => $commercial->id,
+                $this->sameHolder($locked, $exhibitorId, $exhibitorName) => $locked->commercial_id,
+                default => null,
+            };
+
             $locked->update($contact + [
                 'status' => $status,
                 'exhibitor_id' => $exhibitorId,
-                'commercial_id' => $status === SlotStatus::Available ? null : $commercial->id,
+                'commercial_id' => $slotCommercialId,
                 'exhibitor_name' => $exhibitorName,
                 'title' => $data['title'] ?? null,
                 'summary' => $data['summary'] ?? null,
@@ -98,10 +111,153 @@ class SlotService
         });
 
         if ($wasConfirmed) {
-            $this->notifyHolder($slot, new SlotConfirmedNotification($slot));
+            DB::afterCommit(fn () => $this->notifyHolder($slot, new SlotConfirmedNotification($slot)));
         }
 
         return $slot;
+    }
+
+    /** Reserve an available slot atomically; concurrent submissions cannot both claim it. */
+    public function reserveAvailable(Slot $slot, array $data, User $processor): Slot
+    {
+        return DB::transaction(function () use ($slot, $data, $processor): Slot {
+            $locked = Slot::query()->lockForUpdate()->findOrFail($slot->id);
+
+            if ($locked->status !== SlotStatus::Available) {
+                throw ValidationException::withMessages([
+                    'slot_id' => "Le créneau {$locked->code} vient d'être réservé ou placé en option. Choisissez un autre créneau.",
+                ]);
+            }
+
+            if (! SlotStatus::from($data['status'])->isTaken()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Choisissez le statut Réservé, Payé ou Option pour créer une réservation.',
+                ]);
+            }
+
+            return $this->update($locked, $data, $processor);
+        });
+    }
+
+    /** Met à jour les informations métier d'une réservation créée par le responsable, sans déplacer le créneau. */
+    public function updateManualReservation(Slot $slot, array $data, User $manager): Slot
+    {
+        return DB::transaction(function () use ($slot, $data, $manager): Slot {
+            $locked = Slot::query()->lockForUpdate()->findOrFail($slot->id);
+            Gate::forUser($manager)->authorize('manageManualReservation', $locked);
+
+            $changes = [
+                'contact_name' => $data['contact_name'] ?? null,
+                'contact_email' => $data['contact_email'] ?? null,
+                'contact_phone' => $data['contact_phone'] ?? null,
+                'title' => $data['title'] ?? null,
+                'summary' => $data['summary'] ?? null,
+                'speakers' => $data['speakers'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ];
+
+            // Le nom de société libre ne s'applique qu'aux réservations sans fiche Exposant.
+            if ($locked->exhibitor_id === null) {
+                $changes['exhibitor_name'] = trim((string) ($data['exhibitor_name'] ?? '')) ?: null;
+            }
+
+            $locked->update($changes);
+
+            return $locked->fresh(['space', 'exhibitor']);
+        });
+    }
+
+    /** Libère le créneau d'une réservation manuelle, sans supprimer le créneau du planning. */
+    public function releaseManualReservation(Slot $slot, User $manager): Slot
+    {
+        return DB::transaction(function () use ($slot, $manager): Slot {
+            $locked = Slot::query()->lockForUpdate()->findOrFail($slot->id);
+            Gate::forUser($manager)->authorize('manageManualReservation', $locked);
+
+            $this->resetHolderData($locked);
+            $locked->update([
+                'status' => SlotStatus::Available,
+                'exhibitor_id' => null,
+                'commercial_id' => null,
+                'exhibitor_name' => null,
+                'contact_name' => null,
+                'contact_email' => null,
+                'contact_phone' => null,
+                'title' => null,
+                'summary' => null,
+                'speakers' => null,
+                'notes' => null,
+            ]);
+
+            return $locked->fresh(['space']);
+        });
+    }
+
+    /** Delete non-accepted requests; accepted reservations are canceled and safely released with audit retained. */
+    public function cancelRequest(SlotRequest $request, User $manager, ?string $reason = null): void
+    {
+        DB::transaction(function () use ($request, $manager, $reason): void {
+            $lockedRequest = SlotRequest::query()->lockForUpdate()->findOrFail($request->id);
+            Gate::forUser($manager)->authorize('cancel', $lockedRequest);
+
+            $exhibitor = Exhibitor::query()->find($lockedRequest->exhibitor_id);
+            $assignedSlotId = $lockedRequest->assigned_slot_id;
+
+            if ($lockedRequest->status === SlotRequestStatus::Accepted && $assignedSlotId !== null) {
+                $slot = Slot::query()->lockForUpdate()->find($assignedSlotId);
+
+                if ($slot
+                    && (int) $slot->exhibitor_id === (int) $lockedRequest->exhibitor_id
+                    && $slot->status->isTaken()) {
+                    $this->resetHolderData($slot);
+                    $slot->update([
+                        'status' => SlotStatus::Available,
+                        'exhibitor_id' => null,
+                        'commercial_id' => null,
+                        'exhibitor_name' => null,
+                        'contact_name' => null,
+                        'contact_email' => null,
+                        'contact_phone' => null,
+                        'title' => null,
+                        'summary' => null,
+                        'speakers' => null,
+                        'notes' => null,
+                    ]);
+                }
+            }
+
+            // Pending and rejected requests have no confirmed reservation to release.
+            // Their conversations cascade with deletion; existing decision snapshots
+            // survive because slot_request_decisions.slot_request_id is nullOnDelete.
+            if ($lockedRequest->status !== SlotRequestStatus::Accepted) {
+                $lockedRequest->delete();
+
+                return;
+            }
+
+            $processedAt = now();
+            $reason = trim((string) $reason);
+            $lockedRequest->update([
+                'status' => SlotRequestStatus::Cancelled,
+                'rejection_reason' => $reason !== '' ? $reason : null,
+                'processed_by' => $manager->id,
+                'processed_at' => $processedAt,
+            ]);
+
+            SlotRequestDecision::query()->create([
+                'slot_request_id' => $lockedRequest->id,
+                'exhibitor_id' => $exhibitor?->id,
+                'exhibitor_name' => $exhibitor?->company_name ?? 'Exposant indisponible',
+                'request_title' => $lockedRequest->title,
+                'request_type' => $lockedRequest->type->value,
+                'decision' => SlotRequestStatus::Cancelled->value,
+                'reason' => $reason !== '' ? $reason : 'Demande annulée par le Responsable Conférences.',
+                'assigned_slot_id' => $assignedSlotId,
+                'processed_by' => $manager->id,
+                'processor_name' => $manager->name,
+                'processed_at' => $processedAt,
+            ]);
+        });
     }
 
     /** Accepte une demande et attribue l'un des deux créneaux choisis. */

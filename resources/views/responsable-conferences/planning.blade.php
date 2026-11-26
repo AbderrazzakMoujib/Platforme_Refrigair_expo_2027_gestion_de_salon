@@ -8,6 +8,7 @@
     $paid = \App\Enums\SlotStatus::Paid;
 
     $totalSlots = $slots->count();
+    $availableSlots = $slots->where('status', $available)->values();
 
     $availableCount = $slots->where('status', $available)->count();
     $optionCount = $slots->where('status', $option)->count();
@@ -28,6 +29,16 @@
 @endphp
 
 <div id="conference-planning" class="space-y-6">
+
+    @if (session('status'))
+        <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{{ session('status') }}</div>
+    @endif
+    @if ($errors->getBag('slot')->any())
+        <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <strong>Réservation impossible :</strong>
+            <ul class="mt-1 list-disc pl-5">@foreach ($errors->getBag('slot')->all() as $message)<li>{{ $message }}</li>@endforeach</ul>
+        </div>
+    @endif
 
     {{-- PAGE HEADER --}}
     <section class="flex flex-wrap items-center justify-between gap-4">
@@ -56,6 +67,15 @@
             </div>
         </div>
 
+        <a href="{{ route('responsable-conferences.planning.export.pdf', 'fr') }}" class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50">
+            <x-admin.icon name="file-pdf" class="size-5"/> Télécharger le planning PDF
+        </a>
+
+        @if ($availableSlots->isNotEmpty())
+            <button type="button" data-open-first-free class="mb-2 inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">
+                <x-admin.icon name="calendar" class="size-5"/> Créer une réservation
+            </button>
+        @endif
         <a href="{{ route('responsable-conferences.requests.index') }}"
            class="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">
 
@@ -443,6 +463,7 @@
                                                 <p class="mt-1 text-xs text-emerald-700">
                                                     Aucune réservation confirmée.
                                                 </p>
+                                                <button type="button" data-reservation-slot-id="{{ $slot->id }}" class="mt-3 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Réserver ce créneau</button>
                                             </div>
 
                                         @else
@@ -589,6 +610,51 @@
                                             </div>
                                         </details>
 
+                                        @if(in_array($slot->id, $manualReservationIds, true))
+                                            <details class="mt-3 border-t border-slate-100 pt-3">
+                                                <summary class="cursor-pointer text-xs font-bold text-blue-700">Modifier la réservation</summary>
+                                                <form method="POST" action="{{ route('responsable-conferences.reservations.update', $slot) }}" class="mt-3 space-y-3 rounded-xl bg-slate-50 p-4">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    @if($slot->exhibitor_id === null)
+                                                        <label class="block text-xs font-semibold text-slate-600">Société / titulaire
+                                                            <input name="exhibitor_name" maxlength="255" value="{{ $slot->exhibitor_name }}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                                        </label>
+                                                    @endif
+                                                    <label class="block text-xs font-semibold text-slate-600">Sujet / titre
+                                                        <input name="title" maxlength="255" value="{{ $slot->title }}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                                    </label>
+                                                    <label class="block text-xs font-semibold text-slate-600">Résumé
+                                                        <textarea name="summary" maxlength="1000" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{{ $slot->summary }}</textarea>
+                                                    </label>
+                                                    <div class="grid gap-3 sm:grid-cols-2">
+                                                        <label class="block text-xs font-semibold text-slate-600">Contact
+                                                            <input name="contact_name" maxlength="255" value="{{ $slot->contact_name }}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                                        </label>
+                                                        <label class="block text-xs font-semibold text-slate-600">Téléphone
+                                                            <input name="contact_phone" maxlength="40" value="{{ $slot->contact_phone }}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                                        </label>
+                                                    </div>
+                                                    <label class="block text-xs font-semibold text-slate-600">E-mail du contact
+                                                        <input type="email" name="contact_email" maxlength="255" value="{{ $slot->contact_email }}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                                    </label>
+                                                    <label class="block text-xs font-semibold text-slate-600">Intervenants
+                                                        <textarea name="speakers" maxlength="1000" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{{ $slot->speakers }}</textarea>
+                                                    </label>
+                                                    <label class="block text-xs font-semibold text-slate-600">Notes internes
+                                                        <textarea name="notes" maxlength="2000" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{{ $slot->notes }}</textarea>
+                                                    </label>
+                                                    <p class="text-[11px] text-slate-500">L’espace, la date et l’horaire restent fixes.</p>
+                                                    <button type="submit" class="rounded-lg bg-[#2563EB] px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">Enregistrer les modifications</button>
+                                                </form>
+                                            </details>
+                                            <form method="POST" action="{{ route('responsable-conferences.reservations.destroy', $slot) }}" class="mt-2" onsubmit="return confirm('Supprimer cette réservation et libérer le créneau ?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50">Supprimer la réservation</button>
+                                            </form>
+                                        @endif
+
                                     </div>
                                 </div>
                             </article>
@@ -629,7 +695,70 @@
         </div>
     </section>
 </div>
+@php
+    $firstAvailable = $availableSlots->first();
+    $defaultSpaceId = old('space_id', $firstAvailable?->space_id ?? '');
+    $defaultDate = old('date', $firstAvailable?->date?->toDateString() ?? '');
+    $defaultSlotId = old('slot_id', $firstAvailable?->id ?? '');
+    $reservationValue = fn ($field) => old($field);
+    $reservationStatus = old('status', \App\Enums\SlotStatus::Reserved->value);
+    $reservationHolderType = old('holder_type', 'external');
+@endphp
 
+@if ($availableSlots->isNotEmpty())
+    <dialog id="create-reservation-dialog" class="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/60" aria-labelledby="create-reservation-title">
+        <div class="max-h-[90vh] overflow-y-auto p-5 sm:p-6">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 id="create-reservation-title" class="text-lg font-extrabold text-[#0F2347]">Créer une réservation</h2>
+                    <p class="mt-1 text-xs text-slate-500">Choisissez un espace, une date et un horaire disponibles.</p>
+                </div>
+                <button type="button" data-close-reservation-dialog class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Fermer">×</button>
+            </div>
+            <form method="POST" action="{{ route('responsable-conferences.reservations.store') }}" class="mt-5 space-y-4" data-reservation-form>
+                @csrf
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block text-sm font-semibold text-slate-700">
+                        Espace
+                        <select id="reservation-space" name="space_id" required class="conference-booking-input mt-2">
+                            <option value="">Choisir un espace</option>
+                            @foreach ($spaces as $space)
+                                @if ($availableSlots->contains('space_id', $space->id))
+                                    <option value="{{ $space->id }}" @selected((string) $defaultSpaceId === (string) $space->id)>{{ $space->type->label() }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block text-sm font-semibold text-slate-700">
+                        Date
+                        <select id="reservation-date" name="date" required class="conference-booking-input mt-2">
+                            <option value="">Choisir une date</option>
+                            @foreach ($spaces as $space)
+                                @foreach ($availableSlots->where('space_id', $space->id)->unique(fn ($availableSlot) => $availableSlot->date->toDateString()) as $dateSlot)
+                                    <option value="{{ $dateSlot->date->toDateString() }}" data-space-id="{{ $space->id }}" @selected((string) $defaultSpaceId === (string) $space->id && $defaultDate === $dateSlot->date->toDateString())>{{ $dateSlot->date->locale('fr')->isoFormat('dddd D MMMM YYYY') }}</option>
+                                @endforeach
+                            @endforeach
+                        </select>
+                    </label>
+                </div>
+                <label class="block text-sm font-semibold text-slate-700">
+                    Horaire
+                    <select id="reservation-slot" name="slot_id" required class="conference-booking-input mt-2">
+                        <option value="">Choisir un horaire</option>
+                        @foreach ($availableSlots as $availableSlot)
+                            <option value="{{ $availableSlot->id }}" data-space-id="{{ $availableSlot->space_id }}" data-date="{{ $availableSlot->date->toDateString() }}" @selected((string) $defaultSlotId === (string) $availableSlot->id)>{{ $availableSlot->start_label }} – {{ $availableSlot->end_label }} ({{ $availableSlot->code }})</option>
+                        @endforeach
+                    </select>
+                </label>
+                @include('conferences.partials.slot-booking-fields', ['statuses' => $statuses, 'selStatus' => $reservationStatus, 'holderType' => $reservationHolderType, 'value' => $reservationValue, 'allowAvailable' => false])
+                <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                    <button type="button" data-close-reservation-dialog class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Annuler</button>
+                    <button type="submit" class="rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">Enregistrer la réservation</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+@endif
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const root = document.getElementById('conference-planning');
@@ -647,6 +776,91 @@ document.addEventListener('DOMContentLoaded', function () {
     const empty = root.querySelector('#planning-empty');
     const reset = root.querySelector('#planning-reset');
 
+    const reservationDialog = document.getElementById('create-reservation-dialog');
+    const reservationForm = reservationDialog?.querySelector('[data-reservation-form]');
+    const spaceSelect = reservationForm?.querySelector('#reservation-space');
+    const dateSelect = reservationForm?.querySelector('#reservation-date');
+    const slotSelect = reservationForm?.querySelector('#reservation-slot');
+    const statusSelect = reservationForm?.querySelector('[data-status-select]');
+
+    function refreshSlotChoices(preferredSlotId = slotSelect?.value) {
+        if (!spaceSelect || !dateSelect || !slotSelect) return;
+        const matchingSlots = [...slotSelect.options].filter(option =>
+            option.value && option.dataset.spaceId === spaceSelect.value && option.dataset.date === dateSelect.value
+        );
+        [...slotSelect.options].forEach(option => {
+            if (!option.value) return;
+            const available = matchingSlots.includes(option);
+            option.hidden = !available;
+            option.disabled = !available;
+        });
+        const selectedSlot = matchingSlots.find(option => option.value === String(preferredSlotId)) || matchingSlots[0];
+        slotSelect.value = selectedSlot?.value || '';
+    }
+
+    function refreshDateChoices(preferredDate = dateSelect?.value) {
+        if (!spaceSelect || !dateSelect) return;
+        const matchingDates = [...dateSelect.options].filter(option =>
+            option.value && option.dataset.spaceId === spaceSelect.value
+        );
+        [...dateSelect.options].forEach(option => {
+            if (!option.value) return;
+            const available = matchingDates.includes(option);
+            option.hidden = !available;
+            option.disabled = !available;
+        });
+        const selectedDate = matchingDates.find(option => option.value === String(preferredDate)) || matchingDates[0];
+        dateSelect.value = selectedDate?.value || '';
+        refreshSlotChoices();
+    }
+
+    function updateHolderPanels() {
+        const activeType = reservationForm?.querySelector('[name="holder_type"]:checked')?.value;
+        reservationForm?.querySelectorAll('[data-holder-panel]').forEach(panel => {
+            const active = panel.dataset.holderPanel === activeType;
+            panel.hidden = !active;
+            panel.querySelectorAll('input, select').forEach(input => input.disabled = !active || statusSelect?.value === 'available');
+        });
+    }
+
+    if (spaceSelect && dateSelect && slotSelect) {
+        spaceSelect.addEventListener('change', () => refreshDateChoices(''));
+        dateSelect.addEventListener('change', () => refreshSlotChoices(''));
+        slotSelect.addEventListener('change', updateHolderPanels);
+        refreshDateChoices(dateSelect.value);
+    }
+    reservationForm?.querySelectorAll('[name="holder_type"]').forEach(input => input.addEventListener('change', updateHolderPanels));
+    statusSelect?.addEventListener('change', updateHolderPanels);
+    updateHolderPanels();
+
+    function openReservationForSlot(slotId = null) {
+        if (!reservationDialog || !reservationDialog.showModal) return;
+        if (slotId && slotSelect) {
+            const option = [...slotSelect.options].find(item => item.value === String(slotId));
+            if (option) {
+                spaceSelect.value = option.dataset.spaceId;
+                refreshDateChoices(option.dataset.date);
+                slotSelect.value = option.value;
+            }
+        }
+        if (!reservationDialog.open) reservationDialog.showModal();
+    }
+
+    document.querySelectorAll('[data-reservation-slot-id]').forEach(button => {
+        button.addEventListener('click', () => openReservationForSlot(button.dataset.reservationSlotId));
+    });
+    document.querySelectorAll('[data-open-first-free]').forEach(button => {
+        button.addEventListener('click', () => openReservationForSlot());
+    });
+    document.querySelectorAll('[data-close-reservation-dialog]').forEach(button => {
+        button.addEventListener('click', () => button.closest('dialog')?.close());
+    });
+    reservationDialog?.addEventListener('click', event => {
+        if (event.target === reservationDialog) reservationDialog.close();
+    });
+
+    const reopenedSlotId = @json((string) old('slot_id', ''));
+    if (reopenedSlotId) openReservationForSlot(reopenedSlotId);
     let selectedDay = 'all';
 
     const normalize = (value) => String(value || '')

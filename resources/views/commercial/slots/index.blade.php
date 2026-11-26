@@ -9,7 +9,6 @@
     $reopenId = (int) old('slot_id', 0);
     $days = $planning->keys()->values();
     $currentDay = $days->first();
-    $firstFreeId = $slots->first(fn ($s) => $s->status === SlotStatus::Available)?->id;
     $icon = fn (string $name) => asset('assets/conferences/icons/'.$name.'.svg');
 @endphp
 
@@ -31,7 +30,6 @@
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('commercial.slots.export.pdf', 'fr') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-200">Programme PDF</a>
                 <a href="{{ route('commercial.slots.export.csv') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-200">Export CSV</a>
-                <button type="button" data-open-first-free data-new-status="reserved" class="rounded-xl bg-[#2563EB] px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">+ Réserver un créneau</button>
             </div>
         </header>
 
@@ -121,7 +119,7 @@
                                                 @php $cellSlot = ($bySpace[$space->id] ?? collect())->first(fn ($s) => $s->start_label === $startTime); @endphp
                                                 <td class="align-top">
                                                     @if ($cellSlot)
-                                                        <button type="button" data-slot-dialog="slot-dialog-{{ $cellSlot->id }}"
+                                                        <button type="button" @disabled(! $cellSlot->status->isTaken() || ($cellSlot->exhibitor_id !== null ? $cellSlot->exhibitor?->commercial_id : $cellSlot->commercial_id) !== $commercial->id) data-slot-dialog="slot-dialog-{{ $cellSlot->id }}"
                                                             class="block w-full rounded-lg border p-3 text-left transition hover:ring-2 hover:ring-blue-300 focus-visible:ring-2 focus-visible:ring-blue-600 {{ $cellSlot->status->tileClasses() }}">
                                                             <span class="flex flex-wrap items-center justify-between gap-1">
                                                                 <strong class="tabular-nums">{{ $cellSlot->time_range }}</strong>
@@ -173,7 +171,7 @@
                                         <td class="p-3 font-semibold">{{ $slotHolderVisible ? ($slot->holder_name ?: 'Réservation confirmée') : 'Réservation confirmée' }}</td>
                                         <td class="p-3"><span class="rounded-full px-2 py-1 font-bold {{ $slot->status->pillClasses() }}">{{ $slot->status->label() }}</span></td>
                                         <td class="p-3 whitespace-nowrap">{{ $money($slot->price_excl_tax) }}</td>
-                                        <td class="p-3">@if (! $slot->status->isTaken() || $slotHolderVisible)<button type="button" data-slot-dialog="slot-dialog-{{ $slot->id }}" class="font-bold text-blue-700 hover:underline">Voir / Modifier</button>@else<span class="text-slate-400">Lecture seule</span>@endif</td>
+                                        <td class="p-3">@if ($slot->status->isTaken() && $slotHolderVisible)<button type="button" data-slot-dialog="slot-dialog-{{ $slot->id }}" class="font-bold text-blue-700 hover:underline">Voir / Modifier</button>@else<span class="text-slate-400">Lecture seule</span>@endif</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="8" class="p-6 text-center text-slate-500">Aucune réservation pour le moment.</td></tr>
@@ -189,8 +187,6 @@
                 <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h2 class="flex items-center gap-2 text-lg font-extrabold text-[#0F2347]"><img src="{{ $icon('bolt') }}" class="size-5" alt="">Actions rapides</h2>
                     <div class="mt-4 space-y-2">
-                        <button type="button" data-open-first-free data-new-status="reserved" class="flex w-full items-center gap-3 rounded-xl bg-[#2563EB] px-4 py-3 text-left text-sm font-bold text-white hover:bg-blue-700"><img src="{{ $icon('plus-circle') }}" class="size-5 brightness-0 invert" alt="">Créer une réservation</button>
-                        <button type="button" data-open-first-free data-new-status="option" class="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><img src="{{ $icon('hourglass') }}" class="size-5" alt="">Enregistrer une option</button>
                         <a href="{{ route('commercial.exhibitors.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><img src="{{ $icon('users') }}" class="size-5" alt="">Consulter mes exposants</a>
                         <a href="{{ route('commercial.slots.export.pdf', 'fr') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><img src="{{ $icon('file-pdf') }}" class="size-5" alt="">Exporter le planning (PDF)</a>
                         <a href="{{ route('commercial.slots.export.csv') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><img src="{{ $icon('file-csv') }}" class="size-5" alt="">Exporter les réservations (CSV)</a>
@@ -222,7 +218,7 @@
         @php
             $dialogOwnerId = $slot->exhibitor_id !== null ? $slot->exhibitor?->commercial_id : $slot->commercial_id;
         @endphp
-        @if (! $slot->status->isTaken() || $dialogOwnerId === $commercial->id)
+        @if ($slot->status->isTaken() && $dialogOwnerId === $commercial->id)
         @php
             $useOld = $reopenId === $slot->id;
             $val = fn ($field) => $useOld ? old($field) : $slot->{$field};
@@ -238,35 +234,7 @@
                 <form method="POST" action="{{ route('commercial.slots.update', $slot) }}" class="mt-5 space-y-4" data-slot-form>
                     @csrf @method('PUT')
                     <input type="hidden" name="slot_id" value="{{ $slot->id }}">
-                    <label class="block text-sm font-semibold text-slate-700">Statut
-                        <select name="status" class="mt-1 block w-full rounded-xl border-slate-300 text-sm" data-status-select>
-                            @foreach ($statuses as $status)<option value="{{ $status->value }}" @selected($selStatus === $status->value)>{{ $status->label() }}</option>@endforeach
-                        </select>
-                    </label>
-                    <fieldset data-holder-block>
-                        <legend class="text-sm font-semibold text-slate-700">Réservation pour</legend>
-                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                            <label class="rounded-xl border border-slate-200 p-3 text-sm"><input type="radio" name="holder_type" value="exhibitor" @checked($holderType === 'exhibitor') class="mr-1 text-blue-600"> Exposant inscrit</label>
-                            <label class="rounded-xl border border-slate-200 p-3 text-sm"><input type="radio" name="holder_type" value="external" @checked($holderType === 'external') class="mr-1 text-blue-600"> Société / contact externe</label>
-                        </div>
-                        <div data-holder-panel="exhibitor" class="mt-3">
-                            <label class="block text-sm font-medium">Exposant
-                                <select name="exhibitor_id" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"><option value="">Choisir un exposant</option>@foreach ($exhibitors as $e)<option value="{{ $e->id }}" @selected((int) $val('exhibitor_id') === $e->id)>{{ $e->company_name }}</option>@endforeach</select>
-                            </label>
-                        </div>
-                        <div data-holder-panel="external" class="mt-3 space-y-3">
-                            <label class="block text-sm font-medium">Société / titulaire<input name="exhibitor_name" value="{{ $val('exhibitor_name') }}" maxlength="255" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"></label>
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <label class="block text-sm font-medium">Contact<input name="contact_name" value="{{ $val('contact_name') }}" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"></label>
-                                <label class="block text-sm font-medium">Téléphone<input name="contact_phone" value="{{ $val('contact_phone') }}" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"></label>
-                            </div>
-                            <label class="block text-sm font-medium">E-mail<input name="contact_email" type="email" value="{{ $val('contact_email') }}" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"></label>
-                        </div>
-                    </fieldset>
-                    <label class="block text-sm font-medium">Sujet / titre<input name="title" value="{{ $val('title') }}" maxlength="255" class="mt-1 block w-full rounded-xl border-slate-300 text-sm"></label>
-                    <label class="block text-sm font-medium">Résumé (5 lignes maximum)<textarea name="summary" rows="3" maxlength="1000" class="mt-1 block w-full rounded-xl border-slate-300 text-sm">{{ $val('summary') }}</textarea></label>
-                    <label class="block text-sm font-medium">Intervenants<textarea name="speakers" rows="2" maxlength="1000" class="mt-1 block w-full rounded-xl border-slate-300 text-sm">{{ $val('speakers') }}</textarea></label>
-                    <label class="block text-sm font-medium">Notes internes<textarea name="notes" rows="2" maxlength="2000" class="mt-1 block w-full rounded-xl border-slate-300 text-sm">{{ $val('notes') }}</textarea></label>
+                    @include('conferences.partials.slot-booking-fields', ['statuses' => $statuses, 'selStatus' => $selStatus, 'holderType' => $holderType, 'value' => $val])
                     @if ($slot->status->isTaken())
                         <p class="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">Pour attribuer ce créneau à une autre société, libérez-le d'abord et sauvegardez, puis effectuez une nouvelle réservation.</p>
                     @endif
@@ -334,15 +302,6 @@
                 form?.querySelectorAll('[name="holder_type"]').forEach(input => input.addEventListener('change', update));
                 update();
             });
-            const firstFreeId = @json($firstFreeId);
-            document.querySelectorAll('[data-open-first-free]').forEach(btn => btn.addEventListener('click', () => {
-                if (firstFreeId) {
-                    openDialog(`slot-dialog-${firstFreeId}`);
-                    const select = document.querySelector(`#slot-dialog-${firstFreeId} [data-status-select]`);
-                    if (select) { select.value = btn.dataset.newStatus || 'reserved'; select.dispatchEvent(new Event('change')); }
-                }
-                else window.alert('Aucun créneau disponible.');
-            }));
             const search = page.querySelector('#slots-search');
             const space = page.querySelector('#slots-space-filter');
             const status = page.querySelector('#slots-status-filter');

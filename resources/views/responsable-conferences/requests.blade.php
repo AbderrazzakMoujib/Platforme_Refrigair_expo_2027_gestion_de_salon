@@ -22,6 +22,12 @@
             'icon' => 'inbox',
         ],
         [
+            'key' => 'cancelled',
+            'label' => 'Annulées',
+            'count' => $cancelledCount,
+            'icon' => 'inbox',
+        ],
+        [
             'key' => 'all',
             'label' => 'Toutes les demandes',
             'count' => $totalCount,
@@ -50,6 +56,13 @@
             'icon' => 'inbox',
             'background' => 'bg-red-100',
             'color' => 'text-red-600',
+        ],
+        [
+            'label' => 'Annulées',
+            'value' => $cancelledCount,
+            'icon' => 'inbox',
+            'background' => 'bg-slate-100',
+            'color' => 'text-slate-600',
         ],
         [
             'label' => 'Total des demandes',
@@ -519,6 +532,16 @@
                                             × Refuser
                                         </button>
 
+                                    @endif
+
+                                    @if($slotRequest->status !== \App\Enums\SlotRequestStatus::Cancelled)
+                                        <form method="POST" action="{{ route('responsable-conferences.requests.destroy', $slotRequest) }}" onsubmit="return confirm('Une réservation acceptée sera annulée avec son historique conservé. Sinon, la demande et sa conversation seront supprimées. Confirmer ?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50">
+                                                {{ $slotRequest->status === \App\Enums\SlotRequestStatus::Accepted ? 'Annuler la réservation' : 'Supprimer la demande' }}
+                                            </button>
+                                        </form>
                                     @endif
 
                                     <button type="button"

@@ -38,6 +38,14 @@ class SlotRequestPolicy
             && $slotRequest->status === SlotRequestStatus::Pending;
     }
 
+    /** Le responsable peut archiver toute demande, en l'annulant si déjà traitée. */
+    public function cancel(User $user, SlotRequest $slotRequest): bool
+    {
+        return $user->role === UserRole::ResponsableConferences
+            && $user->is_active
+            && $slotRequest->status !== SlotRequestStatus::Cancelled;
+    }
+
     public function viewOwn(User $user, SlotRequest $slotRequest): bool
     {
         return $user->role === UserRole::Commercial

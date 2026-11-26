@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\SlotRequestStatus;
 use App\Http\Requests\Slots\AcceptSlotRequestForm;
 use App\Http\Requests\Slots\RejectSlotRequestForm;
+use App\Http\Requests\Slots\UpdateSlotForm;
+use App\Http\Requests\Slots\UpdateManualReservationForm;
 use App\Models\Slot;
 use App\Models\SlotRequest;
 use App\Models\SlotRequestDecision;
@@ -42,6 +44,9 @@ public function dashboard(): View
 
     $rejectedCount = SlotRequest::query()
         ->where('status', SlotRequestStatus::Rejected)
+        ->count();
+    $cancelledCount = SlotRequest::query()
+        ->where('status', SlotRequestStatus::Cancelled)
         ->count();
 
     $decisionCount = SlotRequestDecision::query()->count();
@@ -107,6 +112,7 @@ public function dashboard(): View
         'pendingCount' => $pendingCount,
         'confirmedCount' => $confirmedCount,
         'rejectedCount' => $rejectedCount,
+        'cancelledCount' => $cancelledCount,
         'decisionCount' => $decisionCount,
         'totalSlots' => $totalSlots,
         'availableSlots' => $availableSlots,
@@ -136,11 +142,54 @@ public function planning(): View
         ])
         ->ordered()
         ->get();
+    $manualReservationIds = Slot::query()
+        ->whereNull('commercial_id')
+        ->whereIn('status', [SlotStatus::Option->value, SlotStatus::Reserved->value, SlotStatus::Paid->value])
+        ->whereNotIn('id', SlotRequest::query()
+            ->select('assigned_slot_id')
+            ->whereNotNull('assigned_slot_id')
+            ->where('status', SlotRequestStatus::Accepted->value))
+        ->pluck('id')
+        ->all();
 
     return view('responsable-conferences.planning', [
         'spaces' => $spaces,
         'slots' => $slots,
+        'exhibitors' => \App\Models\Exhibitor::query()->orderBy('company_name')->get(['id', 'company_name']),
+        'statuses' => SlotStatus::cases(),
+        'manualReservationIds' => $manualReservationIds,
     ]);
+}
+
+public function storeReservation(UpdateSlotForm $request, SlotService $service): RedirectResponse
+{
+    Gate::authorize('reserve', Slot::class);
+    $slot = Slot::query()->findOrFail($request->validated('slot_id'));
+
+    try {
+        $slot = $service->reserveAvailable($slot, $request->validated(), $request->user());
+    } catch (ValidationException $exception) {
+        throw $exception->errorBag('slot');
+    }
+
+    return redirect()
+        ->route('responsable-conferences.planning')
+        ->with('status', "Créneau {$slot->code} réservé pour {$slot->holder_name} ({$slot->status->label()}).");
+}
+
+public function updateReservation(UpdateManualReservationForm $request, Slot $slot, SlotService $service): RedirectResponse
+{
+    $service->updateManualReservation($slot, $request->validated(), $request->user());
+
+    return redirect()->route('responsable-conferences.planning')->with('status', 'La réservation a été mise à jour.');
+}
+
+public function destroyReservation(Request $request, Slot $slot, SlotService $service): RedirectResponse
+{
+    Gate::authorize('manageManualReservation', $slot);
+    $service->releaseManualReservation($slot, $request->user());
+
+    return redirect()->route('responsable-conferences.planning')->with('status', 'La réservation a été supprimée et le créneau est de nouveau disponible.');
 }
 
 
@@ -152,7 +201,7 @@ public function requests(Request $request): View
     $filters = $request->validate([
         'status' => [
             'nullable',
-            Rule::in(['pending', 'accepted', 'rejected', 'all']),
+            Rule::in(['pending', 'accepted', 'rejected', 'cancelled', 'all']),
         ],
         'search' => ['nullable', 'string', 'max:150'],
         'type' => [
@@ -185,10 +234,12 @@ public function requests(Request $request): View
     $pendingCount = (int) ($statusCounts['pending'] ?? 0);
     $acceptedCount = (int) ($statusCounts['accepted'] ?? 0);
     $rejectedCount = (int) ($statusCounts['rejected'] ?? 0);
+    $cancelledCount = (int) ($statusCounts['cancelled'] ?? 0);
 
     $totalCount = $pendingCount
         + $acceptedCount
-        + $rejectedCount;
+        + $rejectedCount
+        + $cancelledCount;
 
     $spaces = Space::query()
         ->orderBy('name')
@@ -258,6 +309,7 @@ public function requests(Request $request): View
         'pendingCount' => $pendingCount,
         'acceptedCount' => $acceptedCount,
         'rejectedCount' => $rejectedCount,
+        'cancelledCount' => $cancelledCount,
         'totalCount' => $totalCount,
     ]);
 }
@@ -280,6 +332,10 @@ public function history(Request $request): View
 
     $rejectedCount = (clone $baseQuery)
         ->where('decision', SlotRequestStatus::Rejected->value)
+        ->count();
+
+    $cancelledCount = (clone $baseQuery)
+        ->where('decision', SlotRequestStatus::Cancelled->value)
         ->count();
 
     $firstDecision = (clone $baseQuery)->min('processed_at');
@@ -318,6 +374,7 @@ public function history(Request $request): View
         'totalDecisions' => $totalDecisions,
         'acceptedCount' => $acceptedCount,
         'rejectedCount' => $rejectedCount,
+        'cancelledCount' => $cancelledCount,
         'periodLabel' => $periodLabel,
     ]);
 }
@@ -373,9 +430,11 @@ public function exportHistory(Request $request): StreamedResponse
                             $decision->exhibitor_name,
                             $decision->request_title,
                             $decision->request_type,
-                            $decision->decision === 'accepted'
-                                ? 'Validée'
-                                : 'Refusée',
+                            match ($decision->decision) {
+                                'accepted' => 'Validée',
+                                'cancelled' => 'Annulée',
+                                default => 'Refusée',
+                            },
                             $slot?->space?->name
                                 ?? $slot?->space?->type?->label(),
                             $slot?->code,
@@ -420,7 +479,7 @@ private function historyFilters(Request $request): array
         'search' => ['nullable', 'string', 'max:150'],
         'decision' => [
             'nullable',
-            Rule::in(['accepted', 'rejected']),
+            Rule::in(['accepted', 'rejected', 'cancelled']),
         ],
         'type' => [
             'nullable',
@@ -753,6 +812,19 @@ private function confirmedQuery(array $filters): Builder
         }
 
         return back()->with('status', 'La demande a été refusée.');
+    }
+
+    public function cancelRequest(Request $request, SlotRequest $slotRequest, SlotService $service): RedirectResponse
+    {
+        Gate::authorize('cancel', $slotRequest);
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+        $wasAccepted = $slotRequest->status === SlotRequestStatus::Accepted;
+
+        $service->cancelRequest($slotRequest, $request->user(), $data['reason'] ?? null);
+
+        return back()->with('status', $wasAccepted
+            ? 'La réservation a été annulée, son créneau libéré et la décision conservée dans l’historique.'
+            : 'La demande et sa conversation ont été supprimées. Les décisions déjà archivées restent dans l’historique.');
     }
 
     public function profile(Request $request): View

@@ -1,5 +1,9 @@
 @php
     $en = $locale === 'en';
+    $allSlots = $days->flatten(1);
+    $totalSlots = $allSlots->count();
+    $bookedSlots = $allSlots->filter(fn ($slot) => $slot->status->isTaken())->count();
+    $availableSlots = $totalSlots - $bookedSlots;
     $t = $en
         ? [
             'title' => 'Conferences & Technology Lounge',
@@ -38,15 +42,25 @@
     <meta charset="utf-8">
     <title>{{ $t['title'] }} – Refrigair Expo 2027</title>
     <style>
-        @page { margin: 18mm 14mm; }
-        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10.5px; color: #0F2347; margin: 0; }
-        .wrap { max-width: 900px; margin: 0 auto; padding: 0 4px; }
-        h1 { font-size: 20px; margin: 0 0 2px; }
-        .subtitle { color: #475569; font-size: 11px; margin: 0 0 16px; }
+        @page { size: A4 portrait; margin: 12mm; }
+        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 9.5px; color: #0F2347; margin: 0; }
+        .wrap { margin: 0 auto; padding: 0 4px; }
+        .brand-header { width: 100%; margin: 0 0 12px; border-collapse: collapse; border-bottom: 3px solid #2563EB; }
+        .brand-header td { border: 0; padding: 0 0 10px; vertical-align: middle; }
+        .brand-logo-cell { width: 175px; padding: 4px 8px 4px 0 !important; background: #fff; border-right: 1px solid #E2E8F0; }
+        .brand-logo { display: block; width: 165px; height: auto; }
+        h1 { font-size: 17px; margin: 0 0 3px; color: #0F2347; }
+        .subtitle { color: #475569; font-size: 8px; margin: 0; }
+        .document-meta { text-align: right; color: #64748B; font-size: 7px; line-height: 1.6; }
+        .summary { width: 100%; margin: 0 0 12px; border-collapse: separate; border-spacing: 6px 0; }
+        .summary td { border: 0; border-radius: 5px; padding: 7px 9px; background: #F1F6FD; color: #0F2347; font-size: 9px; }
+        .summary strong { color: #2563EB; font-size: 13px; }
         h2 { font-size: 13px; margin: 18px 0 6px; padding: 6px 8px; background: #EFF6FF; color: #1D4ED8; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 9.5px; text-transform: uppercase; color: #64748B; border-bottom: 1px solid #CBD5E1; padding: 5px 6px; }
-        td { border-bottom: 1px solid #E2E8F0; padding: 5px 6px; vertical-align: top; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        th { text-align: left; font-size: 7px; text-transform: uppercase; color: #64748B; border-bottom: 1px solid #CBD5E1; padding: 4px 4px; }
+        td { border-bottom: 1px solid #E2E8F0; padding: 4px 4px; vertical-align: top; }
         td.price { text-align: right; white-space: nowrap; }
         th.price { text-align: right; }
         .booked { color: #1D4ED8; font-weight: bold; }
@@ -67,8 +81,31 @@
         <div class="print-bar"><button type="button" onclick="window.print()">{{ $t['print'] }}</button></div>
     @endif
 
-    <h1>{{ $t['title'] }}</h1>
-    <p class="subtitle">{{ $t['subtitle'] }}</p>
+    <table class="brand-header">
+        <tr>
+            <td class="brand-logo-cell">
+                @if ($logoDataUri)
+                    <img class="brand-logo" src="{{ $logoDataUri }}" alt="Refrigair Expo 2027">
+                @endif
+            </td>
+            <td style="padding-left: 14px">
+                <h1>{{ $t['title'] }}</h1>
+                <p class="subtitle">{{ $t['subtitle'] }}</p>
+            </td>
+            <td class="document-meta">
+                REFRIGAIR EXPO 2027<br>
+                {{ $t['generated'] }} {{ $generatedAt->format($en ? 'm/d/Y H:i' : 'd/m/Y H:i') }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="summary" aria-label="Planning summary">
+        <tr>
+            <td><strong>{{ $totalSlots }}</strong><br>{{ $en ? 'Total time slots' : 'Créneaux au total' }}</td>
+            <td><strong>{{ $bookedSlots }}</strong><br>{{ $en ? 'Booked' : 'Réservés / options' }}</td>
+            <td><strong>{{ $availableSlots }}</strong><br>{{ $en ? 'Available' : 'Disponibles' }}</td>
+        </tr>
+    </table>
 
     @foreach ($days as $date => $slots)
         @php $day = \Illuminate\Support\Carbon::parse($date)->locale($locale); @endphp
@@ -124,7 +161,7 @@
         @endforeach
     </ul>
 
-    <p class="footer">{{ $t['generated'] }} {{ $generatedAt->format($en ? 'm/d/Y H:i' : 'd/m/Y H:i') }}</p>
+    <p class="footer">{{ $en ? 'Internal planning document · Refrigair Expo 2027' : 'Document de planning · REFRIGAIR EXPO 2027' }}</p>
 </div>
 </body>
 </html>

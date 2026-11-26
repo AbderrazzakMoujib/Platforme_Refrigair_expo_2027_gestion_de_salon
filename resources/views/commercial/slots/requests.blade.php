@@ -56,7 +56,7 @@
 
         <section class="space-y-3">
             <div class="flex flex-wrap gap-2">
-                @foreach (['all' => 'Toutes', 'pending' => 'En attente', 'accepted' => 'Confirmées', 'rejected' => 'Refusées'] as $key => $label)
+                @foreach (['all' => 'Toutes', 'pending' => 'En attente', 'accepted' => 'Confirmées', 'rejected' => 'Refusées', 'cancelled' => 'Annulées'] as $key => $label)
                     <a href="{{ route('commercial.slot-requests.index', ['status' => $key]) }}" @class(['rounded-xl px-4 py-2 text-sm font-semibold', 'bg-blue-600 text-white' => $status === $key, 'bg-white text-slate-700 ring-1 ring-slate-200' => $status !== $key])>{{ $label }} ({{ $key === 'all' ? $counts->sum() : ($counts[$key] ?? 0) }})</a>
                 @endforeach
             </div>

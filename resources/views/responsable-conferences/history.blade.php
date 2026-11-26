@@ -29,6 +29,14 @@
             'color' => 'text-red-700',
             'percent' => $rejectedCount * 100 / $total,
         ],
+        [
+            'label' => 'Demandes annulées',
+            'value' => $cancelledCount,
+            'icon' => 'inbox',
+            'bg' => 'bg-slate-100',
+            'color' => 'text-slate-600',
+            'percent' => $cancelledCount * 100 / $total,
+        ],
     ];
 
     $search = $filters['search'] ?? '';
@@ -188,6 +196,9 @@
                         <option value="rejected" @selected($selectedDecision === 'rejected')>
                             Refusées
                         </option>
+                        <option value="cancelled" @selected($selectedDecision === 'cancelled')>
+                            Annulées
+                        </option>
                     </select>
                 </div>
 
@@ -287,6 +298,7 @@
                                 ?? 'Sans commercial';
 
                             $accepted = $decision->decision === 'accepted';
+                            $cancelled = $decision->decision === 'cancelled';
 
                             $isLounge = $decision->request_type === 'lounge';
                         @endphp
@@ -346,9 +358,10 @@
                                 <span @class([
                                     'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold',
                                     'bg-emerald-100 text-emerald-700' => $accepted,
-                                    'bg-red-100 text-red-700' => !$accepted,
+                                    'bg-red-100 text-red-700' => !$accepted && !$cancelled,
+                                    'bg-slate-100 text-slate-700' => $cancelled,
                                 ])>
-                                    {{ $accepted ? '✓ Validée' : '× Refusée' }}
+                                    {{ $accepted ? '✓ Validée' : ($cancelled ? 'Annulée' : '× Refusée') }}
                                 </span>
                             </td>
 
@@ -443,6 +456,7 @@
             ?: 'Entreprise non renseignée';
 
         $accepted = $decision->decision === 'accepted';
+        $cancelled = $decision->decision === 'cancelled';
         $slot = $decision->assignedSlot;
         $dialogId = 'history-details-'.$decision->id;
     @endphp
@@ -503,14 +517,16 @@
             <div @class([
                 'rounded-xl border p-4',
                 'border-emerald-200 bg-emerald-50' => $accepted,
-                'border-red-200 bg-red-50' => !$accepted,
+                'border-red-200 bg-red-50' => !$accepted && !$cancelled,
+                'border-slate-200 bg-slate-50' => $cancelled,
             ])>
                 <p @class([
                     'text-sm font-extrabold',
                     'text-emerald-800' => $accepted,
-                    'text-red-800' => !$accepted,
+                    'text-red-800' => !$accepted && !$cancelled,
+                    'text-slate-800' => $cancelled,
                 ])>
-                    {{ $accepted ? '✓ Demande validée' : '× Demande refusée' }}
+                    {{ $accepted ? '✓ Demande validée' : ($cancelled ? 'Demande annulée' : '× Demande refusée') }}
                 </p>
 
                 <p class="mt-2 text-sm text-slate-700">
@@ -572,7 +588,7 @@
                 </div>
             @endif
 
-            @if(!$accepted)
+            @if(!$accepted && !$cancelled)
                 <div class="rounded-xl border border-red-200 bg-red-50 p-4">
                     <p class="text-sm font-extrabold text-red-800">
                         Motif du refus
@@ -580,6 +596,11 @@
                     <p class="mt-2 whitespace-pre-line text-sm leading-6 text-red-700">
                         {{ $decision->reason ?: 'Aucun motif enregistré.' }}
                     </p>
+                </div>
+            @elseif($cancelled && $decision->reason)
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-sm font-extrabold text-slate-800">Motif de l’annulation</p>
+                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{{ $decision->reason }}</p>
                 </div>
             @endif
         </div>

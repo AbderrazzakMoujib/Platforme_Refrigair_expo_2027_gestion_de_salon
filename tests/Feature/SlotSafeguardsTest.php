@@ -37,7 +37,11 @@ class SlotSafeguardsTest extends TestCase
 
         // Libération puis attribution à un autre exposant.
         $this->actingAs($commercial)->put(route('commercial.slots.update', $slot), ['status' => 'available'])->assertSessionHasNoErrors();
-        $this->put(route('commercial.slots.update', $slot), ['status' => 'reserved', 'exhibitor_id' => $second->id])->assertSessionHasNoErrors();
+        $manager = \App\Models\User::factory()->create(['role' => 'responsable_conferences', 'is_active' => true]);
+        $this->actingAs($manager)->post(route('responsable-conferences.reservations.store'), [
+            'status' => 'reserved', 'holder_type' => 'exhibitor', 'exhibitor_id' => $second->id,
+            'slot_id' => $slot->id, 'space_id' => $slot->space_id, 'date' => $slot->date->toDateString(),
+        ])->assertSessionHasNoErrors();
 
         $slot->refresh();
         $this->assertSame($second->id, $slot->exhibitor_id);

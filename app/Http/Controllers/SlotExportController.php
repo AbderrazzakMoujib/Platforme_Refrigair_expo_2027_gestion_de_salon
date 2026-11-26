@@ -28,6 +28,7 @@ class SlotExportController extends Controller
             'rules' => SlotCatalog::rules($locale),
             'generatedAt' => now(),
             'printable' => false,
+            'logoDataUri' => $this->logoDataUri(),
         ];
 
         // dompdf (barryvdh/laravel-dompdf) si installé ; sinon page HTML imprimable.
@@ -35,7 +36,7 @@ class SlotExportController extends Controller
             $pdf = self::PDF_FACADE;
 
             return $pdf::loadView('exports.slots-program', $data)
-                ->setPaper('a4')
+                ->setPaper('a4', 'portrait')
                 ->download("programme-conferences-lounge-refrigair-2027-{$locale}.pdf");
         }
 
@@ -131,5 +132,19 @@ class SlotExportController extends Controller
         }
 
         return in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'".$value : $value;
+    }
+
+    /** Local brand image embedded for both DomPDF and the browser print fallback. */
+    private function logoDataUri(): ?string
+    {
+        $path = public_path('assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-Sans-titre-4-removebg-preview.png');
+
+        if (! is_file($path) || ! is_readable($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+
+        return $contents === false ? null : 'data:image/png;base64,'.base64_encode($contents);
     }
 }

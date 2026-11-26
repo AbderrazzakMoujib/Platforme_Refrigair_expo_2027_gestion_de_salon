@@ -484,6 +484,7 @@
 
                     @php
                         $accepted = $decision->decision === 'accepted';
+                        $cancelled = $decision->decision === 'cancelled';
                     @endphp
 
                     <article class="flex items-start gap-3">
@@ -491,10 +492,11 @@
                         <span @class([
                             'grid size-10 shrink-0 place-items-center rounded-xl text-lg font-bold',
                             'bg-emerald-50 text-emerald-600' => $accepted,
-                            'bg-red-50 text-red-600' => !$accepted,
+                            'bg-red-50 text-red-600' => !$accepted && !$cancelled,
+                            'bg-slate-50 text-slate-600' => $cancelled,
                         ])>
 
-                            {{ $accepted ? '✓' : '×' }}
+                            {{ $accepted ? '✓' : ($cancelled ? '↺' : '×') }}
                         </span>
 
                         <div class="min-w-0 flex-1">
@@ -519,10 +521,11 @@
                         <span @class([
                             'whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold',
                             'bg-emerald-50 text-emerald-700' => $accepted,
-                            'bg-red-50 text-red-700' => !$accepted,
+                            'bg-red-50 text-red-700' => !$accepted && !$cancelled,
+                            'bg-slate-50 text-slate-700' => $cancelled,
                         ])>
 
-                            {{ $accepted ? 'Acceptée' : 'Refusée' }}
+                            {{ $accepted ? 'Acceptée' : ($cancelled ? 'Annulée' : 'Refusée') }}
                         </span>
                     </article>
 

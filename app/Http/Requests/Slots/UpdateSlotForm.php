@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Slots;
 
 use App\Enums\SlotStatus;
+use App\Enums\UserRole;
 use App\Models\Slot;
 use App\Rules\MaxLines;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,6 +29,10 @@ class UpdateSlotForm extends FormRequest
 
     public function authorize(): bool
     {
+        if (! $this->route('slot')) {
+            return $this->user()?->can('reserve', Slot::class) ?? false;
+        }
+
         return $this->user()->can('update', $this->route('slot'));
     }
 
@@ -52,8 +57,8 @@ class UpdateSlotForm extends FormRequest
         $holderFilled = $type === self::HOLDER_EXHIBITOR ? $this->filled('exhibitor_id') : $this->filled('exhibitor_name');
 
         if (
-            $slot instanceof Slot
-            && $slot->status === SlotStatus::Available
+            (($slot instanceof Slot && $slot->status === SlotStatus::Available)
+                || (! $slot && $this->user()?->role === UserRole::ResponsableConferences))
             && $this->input('status') === SlotStatus::Available->value
             && $holderFilled
         ) {
@@ -63,10 +68,17 @@ class UpdateSlotForm extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'status' => ['required', Rule::enum(SlotStatus::class)],
             'holder_type' => ['required', Rule::in([self::HOLDER_EXHIBITOR, self::HOLDER_EXTERNAL])],
-            'exhibitor_id' => ['nullable', 'integer', Rule::exists('exhibitors', 'id')->where('commercial_id', $this->user()->id)],
+            'exhibitor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('exhibitors', 'id')->when(
+                    $this->user()->role === UserRole::Commercial,
+                    fn ($rule) => $rule->where('commercial_id', $this->user()->id),
+                ),
+            ],
             'exhibitor_name' => ['nullable', 'string', 'max:255'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
@@ -76,12 +88,39 @@ class UpdateSlotForm extends FormRequest
             'speakers' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
+
+        if (! $this->route('slot')) {
+            $rules['space_id'] = ['required', 'integer', Rule::exists('spaces', 'id')];
+            $rules['date'] = ['required', 'date_format:Y-m-d'];
+            $rules['slot_id'] = [
+                'required',
+                'integer',
+                Rule::exists('slots', 'id'),
+            ];
+        }
+
+        return $rules;
     }
 
     public function after(): array
     {
         return [
             function (Validator $validator): void {
+                if (
+                    ! $this->route('slot')
+                    && $this->filled('slot_id')
+                    && $this->filled('space_id')
+                    && $this->filled('date')
+                    && ! Slot::query()
+                        ->whereKey($this->input('slot_id'))
+                        ->where('space_id', $this->input('space_id'))
+                        ->whereDate('date', $this->input('date'))
+                        ->where('status', SlotStatus::Available->value)
+                        ->exists()
+                ) {
+                    $validator->errors()->add('slot_id', 'Le créneau choisi n’est plus disponible pour cet espace et cette date. Choisissez un autre horaire.');
+                }
+
                 $status = SlotStatus::tryFrom((string) $this->input('status'));
 
                 if (! $status || ! $status->isTaken()) {
@@ -112,6 +151,16 @@ class UpdateSlotForm extends FormRequest
             'title' => 'titre',
             'summary' => 'résumé',
             'speakers' => 'intervenants',
+            'space_id' => 'espace',
+            'date' => 'date',
+            'slot_id' => 'horaire',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'slot_id.exists' => 'Le créneau choisi n’est plus disponible pour cet espace et cette date. Choisissez un autre horaire.',
         ];
     }
 }

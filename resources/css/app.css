@@ -1,5 +1,42 @@
 @import 'tailwindcss';
 
+.conference-booking-input {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.7rem 0.85rem;
+    color: #0f172a;
+    background-color: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgb(15 35 71 / 5%);
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.conference-booking-input:focus {
+    border-color: #2563eb;
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
+}
+
+select.conference-booking-input {
+    padding-right: 2.5rem;
+}
+
+textarea.conference-booking-input {
+    min-height: 5rem;
+}
+
+.conference-booking-input:-webkit-autofill,
+.conference-booking-input:-webkit-autofill:hover,
+.conference-booking-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #0f172a;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
+    box-shadow: 0 0 0 1000px #fff inset;
+}
+
 .ui-toast-root {
     position: fixed;
     z-index: 10000;

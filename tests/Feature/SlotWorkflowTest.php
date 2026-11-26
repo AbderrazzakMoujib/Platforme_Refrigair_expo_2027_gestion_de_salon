@@ -468,15 +468,18 @@ class SlotWorkflowTest extends TestCase
             commercial: $commercial
         );
 
-        $this->actingAs($commercial)
-            ->put(
-                route(
-                    'commercial.slots.update',
-                    $this->slot('L2-1')
-                ),
+        $manager = User::factory()->create(['role' => 'responsable_conferences', 'is_active' => true]);
+
+        $this->actingAs($manager)
+            ->post(
+                route('responsable-conferences.reservations.store'),
                 [
                     'status' => 'reserved',
+                    'holder_type' => 'exhibitor',
                     'exhibitor_id' => $exhibitor->id,
+                    'slot_id' => $this->slot('L2-1')->id,
+                    'space_id' => $this->slot('L2-1')->space_id,
+                    'date' => $this->slot('L2-1')->date->toDateString(),
                 ]
             )
             ->assertSessionHasNoErrors();

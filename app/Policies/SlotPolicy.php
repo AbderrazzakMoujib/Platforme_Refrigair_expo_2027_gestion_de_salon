@@ -27,15 +27,33 @@ class SlotPolicy
 
     public function update(User $user, Slot $slot): bool
     {
-        if (! $this->manage($user)) {
+        if ($user->role === UserRole::ResponsableConferences) {
+            return $user->is_active;
+        }
+
+        if ($user->role !== UserRole::Commercial || ! $user->is_active || ! $slot->status->isTaken()) {
             return false;
         }
 
-        if (! $slot->status->isTaken()) {
-            return true;
-        }
-
         return $this->slotCommercialId($slot) === $user->id;
+    }
+
+    public function reserve(User $user): bool
+    {
+        return $user->role === UserRole::ResponsableConferences && $user->is_active;
+    }
+
+    /** Réservation créée par le responsable, hors demande acceptée ou réservation commerciale. */
+    public function manageManualReservation(User $user, Slot $slot): bool
+    {
+        return $user->role === UserRole::ResponsableConferences
+            && $user->is_active
+            && $slot->status->isTaken()
+            && $slot->commercial_id === null
+            && ! \App\Models\SlotRequest::query()
+                ->where('assigned_slot_id', $slot->id)
+                ->where('status', \App\Enums\SlotRequestStatus::Accepted->value)
+                ->exists();
     }
 
     /**

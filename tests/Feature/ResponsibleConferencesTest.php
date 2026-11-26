@@ -259,4 +259,157 @@ class ResponsibleConferencesTest extends TestCase
             ->assertOk()
             ->assertSee('First request');
     }
+
+    public function test_manager_can_edit_and_release_only_manual_reservations_without_moving_the_slot(): void
+    {
+        $this->seedSlots();
+        $manager = $this->manager();
+        $slot = $this->slot('L2-1');
+        $slot->update([
+            'status' => SlotStatus::Reserved,
+            'exhibitor_name' => 'Société externe',
+            'contact_name' => 'Contact Initial',
+            'contact_email' => 'initial@example.test',
+            'title' => 'Sujet initial',
+            'summary' => 'Résumé initial',
+            'speakers' => 'Intervenant initial',
+            'notes' => 'Note initiale',
+            'commercial_id' => null,
+        ]);
+        $fixed = [$slot->space_id, $slot->date->toDateString(), $slot->start_time, $slot->end_time];
+
+        $this->actingAs($this->commercial())
+            ->put(route('responsable-conferences.reservations.update', $slot), ['title' => 'Tentative non autorisée'])
+            ->assertForbidden();
+        $this->delete(route('responsable-conferences.reservations.destroy', $slot))->assertForbidden();
+
+        $this->actingAs($manager)
+            ->put(route('responsable-conferences.reservations.update', $slot), [
+                'exhibitor_name' => 'Société mise à jour',
+                'contact_name' => 'Nouveau Contact',
+                'contact_email' => 'new@example.test',
+                'contact_phone' => '+212600000000',
+                'title' => 'Sujet actualisé',
+                'summary' => 'Résumé actualisé',
+                'speakers' => 'Nouvel intervenant',
+                'notes' => 'Nouvelle note',
+            ])
+            ->assertRedirect(route('responsable-conferences.planning'))
+            ->assertSessionHas('status');
+
+        $slot->refresh();
+        $this->assertSame('Sujet actualisé', $slot->title);
+        $this->assertSame('Nouveau Contact', $slot->contact_name);
+        $this->assertSame('Nouvel intervenant', $slot->speakers);
+        $this->assertSame($fixed, [$slot->space_id, $slot->date->toDateString(), $slot->start_time, $slot->end_time]);
+
+        $this->delete(route('responsable-conferences.reservations.destroy', $slot))
+            ->assertRedirect(route('responsable-conferences.planning'));
+        $slot->refresh();
+        $this->assertSame(SlotStatus::Available, $slot->status);
+        $this->assertNull($slot->exhibitor_name);
+        $this->assertSame($fixed, [$slot->space_id, $slot->date->toDateString(), $slot->start_time, $slot->end_time]);
+    }
+
+    public function test_manager_cancels_an_accepted_request_releases_slot_and_keeps_request_conversation_and_audit(): void
+    {
+        $this->seedSlots();
+        $manager = $this->manager();
+        $exhibitor = $this->exhibitor('Société à annuler');
+        $slot = $this->slot('C3-1');
+        $slotRequest = $this->requestFor($exhibitor, 'C3-1', 'C3-2');
+        $slot->update(['status' => SlotStatus::Reserved, 'exhibitor_id' => $exhibitor->id, 'title' => $slotRequest->title]);
+        $slotRequest->update([
+            'status' => SlotRequestStatus::Accepted,
+            'assigned_slot_id' => $slot->id,
+            'processed_by' => $manager->id,
+            'processed_at' => now(),
+        ]);
+        $message = $slotRequest->conferenceMessages()->create([
+            'sender_id' => $manager->id,
+            'body' => 'Échange conservé après annulation.',
+        ]);
+
+        $this->actingAs($manager)
+            ->delete(route('responsable-conferences.requests.destroy', $slotRequest), ['reason' => 'Changement de programme'])
+            ->assertRedirect();
+
+        $this->assertSame(SlotRequestStatus::Cancelled, $slotRequest->fresh()->status);
+        $this->assertSame(SlotStatus::Available, $slot->fresh()->status);
+        $this->assertDatabaseHas('conference_messages', ['id' => $message->id, 'slot_request_id' => $slotRequest->id]);
+        $this->assertDatabaseHas('slot_request_decisions', [
+            'slot_request_id' => $slotRequest->id,
+            'decision' => 'cancelled',
+            'reason' => 'Changement de programme',
+            'assigned_slot_id' => $slot->id,
+            'processed_by' => $manager->id,
+        ]);
+        $this->get(route('responsable-conferences.history', ['decision' => 'cancelled']))
+            ->assertOk()
+            ->assertSee('Annulée')
+            ->assertSee('Changement de programme');
+    }
+
+    public function test_manager_can_delete_pending_request_and_its_conversation(): void
+    {
+        $this->seedSlots();
+        $manager = $this->manager();
+        $exhibitor = $this->exhibitor('Société demandeuse');
+        $slotRequest = $this->requestFor($exhibitor);
+        $message = $slotRequest->conferenceMessages()->create([
+            'sender_id' => $manager->id,
+            'body' => 'Contexte conservé.',
+        ]);
+
+        $this->actingAs($this->commercial())
+            ->delete(route('responsable-conferences.requests.destroy', $slotRequest))
+            ->assertForbidden();
+
+        $this->actingAs($manager)
+            ->delete(route('responsable-conferences.requests.destroy', $slotRequest))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('slot_requests', ['id' => $slotRequest->id]);
+        $this->assertDatabaseMissing('conference_messages', ['id' => $message->id]);
+        $this->assertDatabaseMissing('slot_request_decisions', ['slot_request_id' => $slotRequest->id]);
+    }
+
+    public function test_deleting_a_rejected_request_preserves_its_decision_snapshot(): void
+    {
+        $this->seedSlots();
+        $manager = $this->manager();
+        $exhibitor = $this->exhibitor('Société avec décision');
+        $slotRequest = $this->requestFor($exhibitor);
+        $slotRequest->update([
+            'status' => SlotRequestStatus::Rejected,
+            'rejection_reason' => 'Créneau indisponible',
+            'processed_by' => $manager->id,
+            'processed_at' => now(),
+        ]);
+        $decision = \App\Models\SlotRequestDecision::query()->create([
+            'slot_request_id' => $slotRequest->id,
+            'exhibitor_id' => $exhibitor->id,
+            'exhibitor_name' => $exhibitor->company_name,
+            'request_title' => $slotRequest->title,
+            'request_type' => $slotRequest->type->value,
+            'decision' => 'rejected',
+            'reason' => 'Créneau indisponible',
+            'processed_by' => $manager->id,
+            'processor_name' => $manager->name,
+            'processed_at' => now(),
+        ]);
+
+        $this->actingAs($manager)
+            ->delete(route('responsable-conferences.requests.destroy', $slotRequest))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('slot_requests', ['id' => $slotRequest->id]);
+        $this->assertDatabaseHas('slot_request_decisions', [
+            'id' => $decision->id,
+            'slot_request_id' => null,
+            'exhibitor_name' => $exhibitor->company_name,
+            'decision' => 'rejected',
+            'reason' => 'Créneau indisponible',
+        ]);
+    }
 }

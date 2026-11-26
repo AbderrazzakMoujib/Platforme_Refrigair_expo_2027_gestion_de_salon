@@ -23,17 +23,42 @@ class SlotBookingOnBehalfTest extends TestCase
     {
         $slot = $this->slot($code);
 
-        return $this->put(route('commercial.slots.update', $slot), $data + ['slot_id' => $slot->id]);
+        return $this->post(route('responsable-conferences.reservations.store'), $data + [
+            'slot_id' => $slot->id,
+            'space_id' => $slot->space_id,
+            'date' => $slot->date->toDateString(),
+        ]);
     }
 
-    public function test_commercial_books_a_slot_for_a_registered_exhibitor(): void
+    private function conferenceManager(): User
+    {
+        return User::factory()->create(['role' => 'responsable_conferences', 'is_active' => true]);
+    }
+
+    public function test_conference_manager_planning_exposes_the_shared_reservation_form(): void
+    {
+        $this->seedSlots();
+
+        $this->actingAs($this->conferenceManager())
+            ->get(route('responsable-conferences.planning'))
+            ->assertOk()
+            ->assertSee('Créer une réservation')
+            ->assertSee('Salle de conférence')
+            ->assertSee('Lounge des Technologies')
+            ->assertSee('Date')
+            ->assertSee('Horaire')
+            ->assertSee('Exposant inscrit')
+            ->assertSee('Société / contact externe');
+    }
+
+    public function test_conference_manager_books_a_slot_for_a_registered_exhibitor(): void
     {
         Notification::fake();
         $this->seedSlots();
         $commercial = $this->commercial();
         $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
 
-        $this->actingAs($commercial);
+        $this->actingAs($this->conferenceManager());
 
         // Exposant non choisi : refusé.
         $this->book('C3-1', ['status' => 'reserved', 'holder_type' => 'exhibitor'])
@@ -57,12 +82,12 @@ class SlotBookingOnBehalfTest extends TestCase
         Notification::assertSentTo($exhibitor->user, SlotConfirmedNotification::class);
     }
 
-    public function test_commercial_books_a_slot_for_someone_who_is_not_an_exhibitor(): void
+    public function test_conference_manager_books_a_slot_for_someone_who_is_not_an_exhibitor(): void
     {
         Notification::fake();
         $this->seedSlots();
 
-        $this->actingAs($this->commercial());
+        $this->actingAs($this->conferenceManager());
 
         $this->book('L2-1', ['status' => 'reserved', 'holder_type' => 'external'])
             ->assertSessionHasErrors('exhibitor_name', null, 'slot');
@@ -104,12 +129,32 @@ class SlotBookingOnBehalfTest extends TestCase
             ->assertSee('Atlas Froid');
     }
 
+    public function test_selected_space_and_date_must_match_the_available_slot(): void
+    {
+        $this->seedSlots();
+        $slot = $this->slot('C3-1');
+        $otherSpace = $this->slot('L2-1')->space_id;
+
+        $this->actingAs($this->conferenceManager())
+            ->post(route('responsable-conferences.reservations.store'), [
+                'status' => 'reserved',
+                'holder_type' => 'external',
+                'exhibitor_name' => 'Atlas Froid',
+                'slot_id' => $slot->id,
+                'space_id' => $otherSpace,
+                'date' => $slot->date->toDateString(),
+            ])
+            ->assertSessionHasErrors('slot_id', null, 'slot');
+
+        $this->assertSame(SlotStatus::Available, $slot->fresh()->status);
+    }
+
     public function test_saving_a_free_slot_with_a_holder_reserves_it_even_if_status_was_left_on_available(): void
     {
         $this->seedSlots();
         $commercial = $this->commercial();
         $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
-        $this->actingAs($commercial);
+        $this->actingAs($this->conferenceManager());
 
         // Personne non exposante, statut resté sur « Disponible ».
         $this->book('L2-1', ['status' => 'available', 'holder_type' => 'external', 'exhibitor_name' => 'Atlas Froid'])
@@ -129,11 +174,10 @@ class SlotBookingOnBehalfTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame(SlotStatus::Option, $this->slot('C3-3')->status);
 
-        // Sur un créneau déjà pris, « Disponible » le libère toujours.
         $this->book('L2-1', ['status' => 'available', 'holder_type' => 'external', 'exhibitor_name' => 'Atlas Froid'])
-            ->assertSessionHas('status', 'Créneau L2-1 libéré.');
-        $this->assertSame(SlotStatus::Available, $this->slot('L2-1')->status);
-        $this->assertNull($this->slot('L2-1')->holder_name);
+            ->assertSessionHasErrors('slot_id', null, 'slot');
+        $this->assertSame(SlotStatus::Reserved, $this->slot('L2-1')->status);
+        $this->assertSame('Atlas Froid', $this->slot('L2-1')->holder_name);
     }
 
     public function test_external_holder_without_email_is_not_notified(): void
@@ -141,7 +185,7 @@ class SlotBookingOnBehalfTest extends TestCase
         Notification::fake();
         $this->seedSlots();
 
-        $this->actingAs($this->commercial())
+        $this->actingAs($this->conferenceManager())
             ->book('L2-1', ['status' => 'reserved', 'holder_type' => 'external', 'exhibitor_name' => 'Sans e-mail'])
             ->assertSessionHasNoErrors();
 
@@ -205,14 +249,33 @@ class SlotBookingOnBehalfTest extends TestCase
         );
     }
 
-    public function test_planning_explains_how_to_book_for_someone_else(): void
+    public function test_commercial_cannot_reserve_an_available_slot_by_direct_http_request(): void
+    {
+        $this->seedSlots();
+        $commercial = $this->commercial();
+        $exhibitor = $this->exhibitor('ClimaTech', commercial: $commercial);
+        $slot = $this->slot('C3-1');
+
+        $this->actingAs($commercial)
+            ->put(route('commercial.slots.update', $slot), [
+                'status' => 'reserved',
+                'holder_type' => 'exhibitor',
+                'exhibitor_id' => $exhibitor->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(SlotStatus::Available, $slot->fresh()->status);
+    }
+
+    public function test_commercial_planning_keeps_consultation_but_no_reservation_creation(): void
     {
         $this->seedSlots();
 
         $this->actingAs($this->commercial())
             ->get(route('commercial.slots.index'))
             ->assertOk()
-            ->assertSee('Exposant inscrit')
-            ->assertSee('Société / contact externe');
+            ->assertDontSee('Créer une réservation')
+            ->assertDontSee('Réserver un créneau')
+            ->assertSee('Programme PDF');
     }
 }
