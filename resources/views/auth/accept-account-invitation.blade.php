@@ -12,15 +12,74 @@
         <form method="POST" action="{{ route('account-activation.accept', ['token' => $token]) }}" class="mt-6 space-y-5">
             @csrf
             <div>
-                <label for="password" class="text-sm font-medium">Nouveau mot de passe (8 caractères minimum)</label>
-                <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" class="mt-1 w-full rounded-xl border-slate-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                <label for="password" class="block text-sm font-semibold text-[#0F2347]">Nouveau mot de passe</label>
+                <div class="relative mt-2">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400" aria-hidden="true">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="2"/><path stroke-linecap="round" d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3"/></svg>
+                    </span>
+                    <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" aria-describedby="password-help @error('password') password-error @enderror" @error('password') aria-invalid="true" @enderror class="block min-h-12 w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-12 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20">
+                    <button type="button" data-password-toggle="password" aria-label="Afficher le nouveau mot de passe" aria-pressed="false" class="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3 text-slate-500 transition hover:text-[#0F2347] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563EB]">
+                        <svg data-eye-open class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12s3.2-6 9.5-6 9.5 6 9.5 6-3.2 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        <svg data-eye-closed class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.3 0 9.5 6 9.5 6a16 16 0 0 1-3 3.7M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.2 6 9.5 6c1 0 1.9-.2 2.7-.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+                    </button>
+                </div>
+                <p id="password-help" class="mt-2 text-xs text-slate-500">8 caractères minimum</p>
+                @error('password')<p id="password-error" role="alert" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
             </div>
             <div>
-                <label for="password_confirmation" class="text-sm font-medium">Confirmer le mot de passe</label>
-                <input id="password_confirmation" name="password_confirmation" type="password" required minlength="8" autocomplete="new-password" class="mt-1 w-full rounded-xl border-slate-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                <label for="password_confirmation" class="block text-sm font-semibold text-[#0F2347]">Confirmer le mot de passe</label>
+                <div class="relative mt-2">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400" aria-hidden="true">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="2"/><path stroke-linecap="round" d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3"/></svg>
+                    </span>
+                    <input id="password_confirmation" name="password_confirmation" type="password" required minlength="8" autocomplete="new-password" aria-describedby="password-match @error('password_confirmation') password-confirmation-error @enderror" @error('password_confirmation') aria-invalid="true" @enderror class="block min-h-12 w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-12 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20">
+                    <button type="button" data-password-toggle="password_confirmation" aria-label="Afficher la confirmation du mot de passe" aria-pressed="false" class="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3 text-slate-500 transition hover:text-[#0F2347] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563EB]">
+                        <svg data-eye-open class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12s3.2-6 9.5-6 9.5 6 9.5 6-3.2 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        <svg data-eye-closed class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.3 0 9.5 6 9.5 6a16 16 0 0 1-3 3.7M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.2 6 9.5 6c1 0 1.9-.2 2.7-.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+                    </button>
+                </div>
+                <p id="password-match" class="mt-2 min-h-4 text-xs text-slate-500" aria-live="polite"></p>
+                @error('password_confirmation')<p id="password-confirmation-error" role="alert" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
             </div>
-            <button type="submit" class="w-full rounded-xl bg-[#2563EB] px-4 py-3 font-semibold text-white hover:bg-blue-700">Activer mon compte</button>
+            <button type="submit" class="w-full rounded-xl bg-[#2563EB] px-4 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">Activer mon compte</button>
         </form>
+        <script>
+            (() => {
+                const password = document.getElementById('password');
+                const confirmation = document.getElementById('password_confirmation');
+                const matchMessage = document.getElementById('password-match');
+
+                document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const input = document.getElementById(button.dataset.passwordToggle);
+                        const visible = input.type === 'password';
+                        input.type = visible ? 'text' : 'password';
+                        button.setAttribute('aria-pressed', String(visible));
+                        button.setAttribute('aria-label', visible
+                            ? (input.id === 'password' ? 'Masquer le nouveau mot de passe' : 'Masquer la confirmation du mot de passe')
+                            : (input.id === 'password' ? 'Afficher le nouveau mot de passe' : 'Afficher la confirmation du mot de passe'));
+                        button.querySelector('[data-eye-open]').classList.toggle('hidden', visible);
+                        button.querySelector('[data-eye-closed]').classList.toggle('hidden', !visible);
+                    });
+                });
+
+                const updateMatchMessage = () => {
+                    if (!confirmation.value) {
+                        matchMessage.textContent = '';
+                        matchMessage.className = 'mt-2 min-h-4 text-xs text-slate-500';
+                    } else if (password.value === confirmation.value) {
+                        matchMessage.textContent = 'Les mots de passe correspondent.';
+                        matchMessage.className = 'mt-2 min-h-4 text-xs text-emerald-700';
+                    } else {
+                        matchMessage.textContent = 'Les mots de passe ne correspondent pas encore.';
+                        matchMessage.className = 'mt-2 min-h-4 text-xs text-amber-700';
+                    }
+                };
+
+                password.addEventListener('input', updateMatchMessage);
+                confirmation.addEventListener('input', updateMatchMessage);
+            })();
+        </script>
     @else
         @php
             [$title, $message] = match ($state) {
