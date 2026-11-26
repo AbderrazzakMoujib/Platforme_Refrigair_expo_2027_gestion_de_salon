@@ -79,6 +79,7 @@ class AuthenticatedSessionController extends Controller
             UserRole::Admin->value => 'admin.index',
             UserRole::Commercial->value => 'commercial.index',
             UserRole::ResponsableConferences->value => 'responsable-conferences.dashboard',
+            UserRole::ResponsableTechnique->value => 'responsable-technique.dashboard',
             default => 'exposant.index',
         };
     }
@@ -91,6 +92,7 @@ class AuthenticatedSessionController extends Controller
             UserRole::Admin->value => "Connexion réussie. Votre espace d'administration est prêt.",
             UserRole::Commercial->value => 'Connexion réussie. Retrouvez vos exposants et vos activités.',
             UserRole::ResponsableConferences->value => 'Connexion réussie. Retrouvez votre planning et vos réservations.',
+            UserRole::ResponsableTechnique->value => 'Connexion réussie. Votre espace de suivi technique est prêt.',
             default => 'Connexion réussie. Heureux de vous retrouver dans votre espace exposant.',
         };
 

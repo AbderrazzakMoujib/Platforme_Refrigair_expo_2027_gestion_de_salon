@@ -16,6 +16,7 @@ class AccountInvitationService
     private const INVITABLE_ROLES = [
         UserRole::Commercial->value,
         UserRole::ResponsableConferences->value,
+        UserRole::ResponsableTechnique->value,
         UserRole::Exposant->value,
     ];
 

@@ -27,7 +27,7 @@ class SlotRequestPolicy
     public function viewAny(User $user): bool
     {
         return $user->is_active
-            && in_array($user->role, [UserRole::Commercial, UserRole::ResponsableConferences], true);
+            && in_array($user->role, [UserRole::Commercial, UserRole::ResponsableConferences, UserRole::ResponsableTechnique], true);
     }
 
     /** Accepter / refuser : réservé au commercial, demande encore en attente. */

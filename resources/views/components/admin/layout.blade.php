@@ -28,6 +28,12 @@
             'active' => request()->routeIs('admin.responsables-conferences.*'),
         ],
         [
+            'label' => 'Responsables Techniques',
+            'icon' => 'users',
+            'route' => 'admin.responsables-techniques.index',
+            'active' => request()->routeIs('admin.responsables-techniques.*'),
+        ],
+        [
             'label' => 'Exposants',
             'icon' => 'users',
             'route' => 'admin.exposants.index',

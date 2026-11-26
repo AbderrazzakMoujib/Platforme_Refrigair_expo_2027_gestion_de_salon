@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SalonController;
 use App\Http\Controllers\Admin\BadgeController;
 use App\Http\Controllers\Admin\ConferenceManagerController;
+use App\Http\Controllers\Admin\TechnicalManagerController;
 use App\Http\Controllers\ExhibitorStandOptionsController;
 use App\Http\Controllers\CommercialProfileController;
 use App\Http\Controllers\CommercialExhibitorController;
@@ -68,6 +69,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/responsables-conferences/{manager}/password', [ConferenceManagerController::class, 'resetPassword'])->whereNumber('manager')->name('responsables-conferences.password');
     Route::patch('/responsables-conferences/{manager}/access', [ConferenceManagerController::class, 'toggleAccess'])->whereNumber('manager')->name('responsables-conferences.access');
     Route::post('/responsables-conferences/{manager}/invitation', [ConferenceManagerController::class, 'resendInvitation'])->whereNumber('manager')->name('responsables-conferences.invitation');
+    Route::get('/responsables-techniques', [TechnicalManagerController::class, 'index'])->name('responsables-techniques.index');
+    Route::get('/responsables-techniques/create', [TechnicalManagerController::class, 'create'])->name('responsables-techniques.create');
+    Route::post('/responsables-techniques', [TechnicalManagerController::class, 'store'])->name('responsables-techniques.store');
+    Route::get('/responsables-techniques/{technician}/edit', [TechnicalManagerController::class, 'edit'])->whereNumber('technician')->name('responsables-techniques.edit');
+    Route::put('/responsables-techniques/{technician}', [TechnicalManagerController::class, 'update'])->whereNumber('technician')->name('responsables-techniques.update');
+    Route::put('/responsables-techniques/{technician}/password', [TechnicalManagerController::class, 'resetPassword'])->whereNumber('technician')->name('responsables-techniques.password');
+    Route::patch('/responsables-techniques/{technician}/access', [TechnicalManagerController::class, 'toggleAccess'])->whereNumber('technician')->name('responsables-techniques.access');
+    Route::post('/responsables-techniques/{technician}/invitation', [TechnicalManagerController::class, 'resendInvitation'])->whereNumber('technician')->name('responsables-techniques.invitation');
     Route::get('/exposants', [ExhibitorController::class, 'index'])
     ->name('exposants.index');
 
@@ -449,6 +458,17 @@ Route::get(
 
 
 });
+
+Route::middleware(['auth', 'role:responsable_technique'])
+    ->prefix('responsable-technique')
+    ->name('responsable-technique.')
+    ->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\TechnicalDashboardController::class, 'dashboard'])->name('dashboard');
+        Route::get('/equipements', [\App\Http\Controllers\TechnicalDashboardController::class, 'equipment'])->name('equipment');
+        Route::get('/commerciaux', [\App\Http\Controllers\TechnicalDashboardController::class, 'commercials'])->name('commercials');
+        Route::get('/commerciaux/{commercial}', [\App\Http\Controllers\TechnicalDashboardController::class, 'commercial'])->whereNumber('commercial')->name('commercial');
+        Route::get('/conferences', [\App\Http\Controllers\TechnicalDashboardController::class, 'conferences'])->name('conferences');
+    });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');

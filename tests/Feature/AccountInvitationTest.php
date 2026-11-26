@@ -47,6 +47,28 @@ class AccountInvitationTest extends TestCase
         }
     }
 
+    public function test_technical_manager_can_activate_from_admin_invitation(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::ResponsableTechnique,
+            'password' => null,
+            'email_verified_at' => null,
+            'is_active' => true,
+        ]);
+        $issued = app(AccountInvitationService::class)->issueFor($user);
+        Mail::fake();
+        $this->assertTrue(app(AccountInvitationService::class)->deliver($issued['invitation'], $issued['token']));
+
+        $this->get(route('account-activation.show', $issued['token']))->assertOk()->assertSee('Responsable Technique');
+        $this->post(route('account-activation.accept', $issued['token']), [
+            'password' => 'NewSecurePassword123!',
+            'password_confirmation' => 'NewSecurePassword123!',
+        ])->assertRedirect(route('login'));
+
+        $this->assertTrue(password_verify('NewSecurePassword123!', $user->fresh()->password));
+        $this->assertNotNull($issued['invitation']->fresh()->accepted_at);
+    }
+
     public function test_expired_and_revoked_invitations_cannot_activate(): void
     {
         $user = User::factory()->create(['role' => UserRole::Exposant, 'password' => null]);

@@ -96,10 +96,17 @@ class SlotService
                 default => null,
             };
 
+            $createdBy = match (true) {
+                $status === SlotStatus::Available => null,
+                $this->sameHolder($locked, $exhibitorId, $exhibitorName) => $locked->created_by,
+                default => $commercial->id,
+            };
+
             $locked->update($contact + [
                 'status' => $status,
                 'exhibitor_id' => $exhibitorId,
                 'commercial_id' => $slotCommercialId,
+                'created_by' => $createdBy,
                 'exhibitor_name' => $exhibitorName,
                 'title' => $data['title'] ?? null,
                 'summary' => $data['summary'] ?? null,
@@ -179,6 +186,7 @@ class SlotService
                 'status' => SlotStatus::Available,
                 'exhibitor_id' => null,
                 'commercial_id' => null,
+                'created_by' => null,
                 'exhibitor_name' => null,
                 'contact_name' => null,
                 'contact_email' => null,
@@ -214,6 +222,7 @@ class SlotService
                         'status' => SlotStatus::Available,
                         'exhibitor_id' => null,
                         'commercial_id' => null,
+                        'created_by' => null,
                         'exhibitor_name' => null,
                         'contact_name' => null,
                         'contact_email' => null,
@@ -294,6 +303,7 @@ class SlotService
                 'status' => SlotStatus::Reserved,
                 'exhibitor_id' => $lockedRequest->exhibitor_id,
                 'commercial_id' => $exhibitor->commercial_id,
+                'created_by' => null,
                 'exhibitor_name' => null,
                 'contact_name' => null,
                 'contact_email' => null,

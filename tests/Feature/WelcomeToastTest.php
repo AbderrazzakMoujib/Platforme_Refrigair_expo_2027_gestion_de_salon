@@ -16,8 +16,8 @@ class WelcomeToastTest extends TestCase
         $response = $this->loginAndAssertWelcome(
             UserRole::Admin,
             'admin.index',
-            'Bienvenue, Élodie !',
-            "Connexion réussie. Votre espace d'administration est prêt.",
+            "Bienvenue, \u{00C9}lodie !",
+            "Connexion r\u{00E9}ussie. Votre espace d'administration est pr\u{00EA}t.",
         );
 
         $response->assertSee('data-live-notifications', false);
@@ -28,8 +28,8 @@ class WelcomeToastTest extends TestCase
         $this->loginAndAssertWelcome(
             UserRole::Commercial,
             'commercial.index',
-            'Bienvenue, Élodie !',
-            'Connexion réussie. Retrouvez vos exposants et vos activités.',
+            "Bienvenue, \u{00C9}lodie !",
+            "Connexion r\u{00E9}ussie. Retrouvez vos exposants et vos activit\u{00E9}s.",
         );
     }
 
@@ -38,8 +38,8 @@ class WelcomeToastTest extends TestCase
         $this->loginAndAssertWelcome(
             UserRole::Exposant,
             'exposant.index',
-            'Bienvenue, Élodie !',
-            'Connexion réussie. Heureux de vous retrouver dans votre espace exposant.',
+            "Bienvenue, \u{00C9}lodie !",
+            "Connexion r\u{00E9}ussie. Heureux de vous retrouver dans votre espace exposant.",
         );
     }
 
@@ -48,8 +48,18 @@ class WelcomeToastTest extends TestCase
         $this->loginAndAssertWelcome(
             UserRole::ResponsableConferences,
             'responsable-conferences.dashboard',
-            'Bienvenue, Élodie !',
-            'Connexion réussie. Retrouvez votre planning et vos réservations.',
+            "Bienvenue, \u{00C9}lodie !",
+            "Connexion r\u{00E9}ussie. Retrouvez votre planning et vos r\u{00E9}servations.",
+        );
+    }
+
+    public function test_technical_manager_gets_a_personalized_welcome_toast_once(): void
+    {
+        $this->loginAndAssertWelcome(
+            UserRole::ResponsableTechnique,
+            'responsable-technique.dashboard',
+            "Bienvenue, \u{00C9}lodie !",
+            "Connexion r\u{00E9}ussie. Votre espace de suivi technique est pr\u{00EA}t.",
         );
     }
 
@@ -72,9 +82,7 @@ class WelcomeToastTest extends TestCase
     {
         $user = User::factory()->create(['role' => UserRole::ResponsableConferences]);
 
-        $this->actingAs($user)
-            ->get(route('login'))
-            ->assertRedirect();
+        $this->actingAs($user)->get(route('login'))->assertRedirect();
 
         $dashboard = $this->get(route('responsable-conferences.dashboard'))->assertOk();
         $this->assertSame([], $this->toastPayload($dashboard->getContent()));
@@ -106,7 +114,7 @@ class WelcomeToastTest extends TestCase
         string $expectedMessage,
     ): \Illuminate\Testing\TestResponse {
         $user = User::factory()->create([
-            'name' => 'Élodie Martin',
+            'name' => "\u{00C9}lodie Martin",
             'role' => $role,
             'password' => 'correct-password',
         ]);

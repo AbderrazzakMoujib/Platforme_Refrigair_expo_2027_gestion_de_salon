@@ -2,11 +2,13 @@
     $roleLabel = match ($role) {
         'commercial' => 'Commercial',
         'responsable_conferences' => 'Responsable Conférences',
+        'responsable_technique' => 'Responsable Technique',
         default => 'Exposant',
     };
     $buttonLabel = match ($role) {
         'commercial' => 'Activer mon compte Commercial',
         'responsable_conferences' => 'Activer mon espace',
+        'responsable_technique' => 'Activer mon espace Responsable Technique',
         default => 'Activer mon espace exposant',
     };
     $logoUrl = rtrim((string) config('app.url'), '/').'/assets/images/Refrigairexpo-February-2-4-2027-OFEC-Casablanca-Morocco-logo-8.png';
@@ -42,6 +44,9 @@
                 @elseif ($role === 'commercial')
                     <h1 style="margin:0 0 16px;color:#0F2347;font-size:24px;line-height:1.3;">Activez votre espace Commercial</h1>
                     <p style="margin:0 0 18px;font-size:15px;line-height:1.7;">Votre accès à la plateforme REFRIGAIR EXPO 2027 a été créé. Votre espace vous permet de gérer vos entreprises exposantes et leurs accès, suivre les badges, gérer le catalogue partagé et les demandes d'équipements, traiter l'assistance et suivre les réservations Conférences &amp; Lounge selon vos permissions.</p>
+                @elseif ($role === 'responsable_technique')
+                    <h1 style="margin:0 0 16px;color:#0F2347;font-size:24px;line-height:1.3;">Activez votre espace Responsable Technique</h1>
+                    <p style="margin:0 0 18px;font-size:15px;line-height:1.7;">Votre espace en lecture seule vous permet de consulter le catalogue des équipements, l’activité des Commerciaux et des Exposants, ainsi que le planning Conférences &amp; Lounge, les demandes et les réservations.</p>
                 @else
                     <h1 style="margin:0 0 16px;color:#0F2347;font-size:24px;line-height:1.3;">Activez votre espace Responsable Conférences</h1>
                     <p style="margin:0 0 18px;font-size:15px;line-height:1.7;">Votre accès à la plateforme REFRIGAIR EXPO 2027 a été créé. Vous pourrez consulter le planning, traiter les demandes de réservation, suivre les créneaux confirmés, consulter les supports, valider leur contenu ou demander une révision, et échanger avec les exposants depuis l'espace Responsable Conférences.</p>

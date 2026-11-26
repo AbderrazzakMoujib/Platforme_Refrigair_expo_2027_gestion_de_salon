@@ -22,7 +22,7 @@ class SlotPolicy
     public function view(User $user): bool
     {
         return $user->is_active
-            && in_array($user->role, [UserRole::Admin, UserRole::Commercial, UserRole::ResponsableConferences], true);
+            && in_array($user->role, [UserRole::Admin, UserRole::Commercial, UserRole::ResponsableConferences, UserRole::ResponsableTechnique], true);
     }
 
     public function update(User $user, Slot $slot): bool

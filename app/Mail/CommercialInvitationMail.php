@@ -24,6 +24,7 @@ class CommercialInvitationMail extends Mailable
         $subject = match ($this->role) {
             'commercial' => 'REFRIGAIR EXPO 2027 | Activation de votre espace Commercial',
             'responsable_conferences' => 'REFRIGAIR EXPO 2027 | Activation de votre espace Responsable Conférences',
+            'responsable_technique' => 'REFRIGAIR EXPO 2027 | Activation de votre espace Responsable Technique',
             default => 'REFRIGAIR EXPO 2027 | Activez votre espace exposant',
         };
 

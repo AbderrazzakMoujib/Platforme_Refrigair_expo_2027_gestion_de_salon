@@ -17,6 +17,7 @@ class CommercialInvitationController extends Controller
     private const INVITABLE_ROLES = [
         'commercial',
         'responsable_conferences',
+        'responsable_technique',
         'exposant',
     ];
 
@@ -167,6 +168,7 @@ class CommercialInvitationController extends Controller
         return match ($role) {
             UserRole::Commercial->value => 'Commercial',
             UserRole::ResponsableConferences->value => 'Responsable Conférences',
+            UserRole::ResponsableTechnique->value => 'Responsable Technique',
             default => 'Exposant',
         };
     }

@@ -2,11 +2,13 @@
     $roleLabel = match ($role) {
         'commercial' => 'Commercial',
         'responsable_conferences' => 'Responsable Conférences',
+        'responsable_technique' => 'Responsable Technique',
         default => 'Exposant',
     };
     $buttonLabel = match ($role) {
         'commercial' => 'Activer mon compte Commercial',
         'responsable_conferences' => 'Activer mon espace',
+        'responsable_technique' => 'Activer mon espace Responsable Technique',
         default => 'Activer mon espace exposant',
     };
 @endphp
@@ -21,6 +23,8 @@ Adresse email de connexion : {{ $user->email }}
 Votre espace vous permet de consulter les informations de votre entreprise et de votre stand, gérer les badges, soumettre des demandes d'équipements, suivre vos demandes et notifications, demander un créneau Conférences & Lounge et contacter votre Commercial référent. Le salon se déroule du 2 au 4 février 2027 à l'OFEC de Casablanca.
 @elseif ($role === 'commercial')
 Votre espace vous permet de gérer vos entreprises exposantes et leurs accès, suivre les badges, gérer le catalogue partagé et les demandes d'équipements, traiter l'assistance et suivre les réservations Conférences & Lounge selon vos permissions.
+@elseif ($role === 'responsable_technique')
+Votre espace en lecture seule permet de consulter les équipements, l’activité des Commerciaux et Exposants, le planning Conférences & Lounge, les demandes et les réservations.
 @else
 Votre espace vous permet de consulter le planning, traiter les demandes de réservation, suivre les créneaux confirmés, consulter les supports, demander une révision et échanger avec les exposants.
 @endif
