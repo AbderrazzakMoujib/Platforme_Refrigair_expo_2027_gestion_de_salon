@@ -132,13 +132,7 @@
                     Informations de l'entreprise
                 </h2>
 
-                <button type="button"
-                        id="edit-company-button"
-                        aria-controls="company-edit-form"
-                        aria-expanded="{{ $errors->any() ? 'true' : 'false' }}"
-                        class="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">
-                    Modifier
-                </button>
+                <a href="{{ route('exhibitor.profile') }}" class="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Modifier le profil</a>
 
             </div>
 
@@ -210,87 +204,7 @@
 
                 </dl>
 
-                <!-- EDIT CONTACT FORM -->
-                <form id="company-edit-form"
-                      method="POST"
-                      action="{{ route('exhibitor.company.update') }}"
-                      class="{{ $errors->any() ? '' : 'hidden' }} mt-6 space-y-4 rounded-xl border border-blue-100 bg-blue-50/40 p-5">
-
-                    @csrf
-                    @method('PUT')
-
-                    <div>
-                        <h3 class="font-bold text-[#0F2347]">
-                            Modifier les coordonnées
-                        </h3>
-                        <p class="mt-1 text-xs text-slate-500">
-                            Le nom de l'entreprise et les détails
-                            du stand sont gérés par l'organisation.
-                        </p>
-                    </div>
-
-                    <div>
-                        <label for="contact_name"
-                               class="block text-sm font-semibold text-slate-700">
-                            Responsable *
-                        </label>
-
-                        <input id="contact_name"
-                               name="contact_name"
-                               type="text"
-                               required
-                               maxlength="255"
-                               value="{{ old('contact_name', $exhibitor->contact_name) }}"
-                               class="mt-2 block w-full rounded-xl border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-
-                        <div>
-                            <label for="email"
-                                   class="block text-sm font-semibold text-slate-700">
-                                Email *
-                            </label>
-
-                            <input id="email"
-                                   name="email"
-                                   type="email"
-                                   required
-                                   maxlength="255"
-                                   value="{{ old('email', $exhibitor->email) }}"
-                                   class="mt-2 block w-full rounded-xl border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label for="phone"
-                                   class="block text-sm font-semibold text-slate-700">
-                                Téléphone
-                            </label>
-
-                            <input id="phone"
-                                   name="phone"
-                                   type="tel"
-                                   maxlength="40"
-                                   value="{{ old('phone', $exhibitor->phone) }}"
-                                   class="mt-2 block w-full rounded-xl border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                    </div>
-
-                    <div class="flex justify-end gap-3">
-                        <button type="button"
-                                id="cancel-company-edit"
-                                class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                            Annuler
-                        </button>
-
-                        <button type="submit"
-                                class="rounded-xl bg-[#2563EB] px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
-                            Enregistrer
-                        </button>
-                    </div>
-
-                </form>
+                <p class="mt-5 rounded-xl bg-blue-50/60 p-4 text-sm text-slate-600">Pour modifier le logo ou les coordonnées de votre entreprise, rendez-vous dans <a href="{{ route('exhibitor.profile') }}" class="font-bold text-blue-700 hover:underline">Mon Profil</a>.</p>
 
             </div>
 
@@ -535,33 +449,6 @@
 
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const button = document.getElementById('edit-company-button');
-    const form = document.getElementById('company-edit-form');
-    const cancel = document.getElementById('cancel-company-edit');
 
-    if (!button || !form || !cancel) return;
-
-    button.addEventListener('click', () => {
-        const isHidden = form.classList.toggle('hidden');
-
-        button.setAttribute(
-            'aria-expanded',
-            String(!isHidden)
-        );
-
-        if (!isHidden) {
-            form.querySelector('input')?.focus();
-        }
-    });
-
-    cancel.addEventListener('click', () => {
-        form.classList.add('hidden');
-        form.reset();
-        button.setAttribute('aria-expanded', 'false');
-    });
-});
-</script>
 
 </x-exhibitor.layout>

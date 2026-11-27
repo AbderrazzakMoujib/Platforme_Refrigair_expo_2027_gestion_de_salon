@@ -27,6 +27,21 @@ class SalonPlanController extends Controller
         return view('exhibitor.salon-plan.index', $this->viewData());
     }
 
+    public function admin(Request $request): View
+    {
+        $admin = $request->user();
+        $initials = collect(preg_split('/\\s+/', trim((string) $admin->name)))
+            ->filter()
+            ->take(2)
+            ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->implode('') ?: 'A';
+
+        return view('admin.salon-plan.index', array_merge($this->viewData(), [
+            'admin' => $admin,
+            'adminInitials' => $initials,
+        ]));
+    }
+
     public function preview(): BinaryFileResponse
     {
         $plan = $this->availablePlan();
@@ -93,7 +108,52 @@ class SalonPlanController extends Controller
             $disk->delete($oldPath);
         }
 
-        return redirect()->route('commercial.salon-plan.index')->with('status', 'Le plan du salon a été mis à jour pour tous les utilisateurs.');
+        $destination = $request->routeIs('admin.salon-plan.*')
+            ? 'admin.salon-plan.index'
+            : 'commercial.salon-plan.index';
+
+        return redirect()->route($destination)->with('status', 'Le plan du salon a été mis à jour pour tous les utilisateurs.');
+    }
+
+    public function destroy(Request $request): RedirectResponse
+    {
+        $disk = Storage::disk('local');
+
+        try {
+            $oldPath = DB::transaction(function () use ($request): ?string {
+                $plan = SalonPlan::query()->lockForUpdate()->findOrFail(self::DOCUMENT_ID);
+                $previousPath = $plan->file_path;
+
+                $plan->fill([
+                    'file_path' => null,
+                    'original_name' => null,
+                    'updated_by' => $request->user()->id,
+                ])->saveOrFail();
+
+                return $previousPath;
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->route('admin.salon-plan.index')
+                ->withErrors(['document' => 'La suppression du plan a échoué. Le document actif est conservé.']);
+        }
+
+        $cleanupSucceeded = true;
+        if ($oldPath && ! SalonPlan::query()->where('file_path', $oldPath)->exists()) {
+            try {
+                $cleanupSucceeded = $disk->delete($oldPath);
+            } catch (Throwable $exception) {
+                report($exception);
+                $cleanupSucceeded = false;
+            }
+        }
+
+        $message = $cleanupSucceeded
+            ? 'Le plan actif a été supprimé pour tous les utilisateurs.'
+            : 'Le plan actif a été retiré. Le nettoyage du fichier devra être réessayé.';
+
+        return redirect()->route('admin.salon-plan.index')->with('status', $message);
     }
 
     /** @return array{plan: SalonPlan, documentAvailable: bool} */

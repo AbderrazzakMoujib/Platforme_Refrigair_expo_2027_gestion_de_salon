@@ -14,6 +14,12 @@
             'active' => request()->routeIs('exhibitor.company.*'),
         ],
         [
+            'label' => 'Mon Profil',
+            'icon' => 'user',
+            'url' => route('exhibitor.profile'),
+            'active' => request()->routeIs('exhibitor.profile*'),
+        ],
+        [
             'label' => 'Plan du Salon',
             'icon' => 'map',
             'url' => route('exhibitor.salon-plan.index'),
@@ -149,6 +155,12 @@
                                 >
                                     <rect x="4" y="3" width="16" height="18" rx="1"/>
                                     <path d="M9 21v-5h6v5M8 7h2m4 0h2M8 11h2m4 0h2"/>
+                                </svg>
+                                @break
+                            @case('user')
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="8" r="4"/>
+                                    <path d="M4 21a8 8 0 0 1 16 0"/>
                                 </svg>
                                 @break
                             @case('map')

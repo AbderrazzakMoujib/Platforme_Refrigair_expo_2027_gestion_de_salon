@@ -16,6 +16,12 @@
             'active' => request()->routeIs('admin.salons.*'),
         ],
         [
+            'label' => 'Plan du Salon',
+            'icon' => 'map',
+            'route' => 'admin.salon-plan.index',
+            'active' => request()->routeIs('admin.salon-plan.*'),
+        ],
+        [
             'label' => 'Commerciaux',
             'icon' => 'users',
             'route' => 'admin.commerciaux.index',

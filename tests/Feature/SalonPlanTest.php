@@ -83,6 +83,101 @@ class SalonPlanTest extends TestCase
             ->assertSee('plan-updated.pdf');
     }
 
+    public function test_admin_can_publish_replace_consult_download_and_delete_the_shared_pdf(): void
+    {
+        Storage::fake('local');
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $commercial = $this->commercial();
+        $exhibitor = $this->exhibitor('ClimaTech');
+
+        $this->actingAs($admin)
+            ->get(route('admin.salon-plan.index'))
+            ->assertOk()
+            ->assertSee('Plan du Salon — REFRIGAIR EXPO 2027')
+            ->assertSee('Le plan du salon sera disponible prochainement.');
+
+        $this->actingAs($admin)
+            ->post(route('admin.salon-plan.replace'), ['document' => $this->pdf('admin-initial.pdf')])
+            ->assertRedirect(route('admin.salon-plan.index'));
+
+        $first = SalonPlan::query()->findOrFail(1);
+        $firstPath = $first->file_path;
+        $this->assertSame(1, SalonPlan::query()->count());
+        $this->assertSame('admin-initial.pdf', $first->original_name);
+        $this->assertSame($admin->id, $first->updated_by);
+        Storage::disk('local')->assertExists($firstPath);
+
+        $this->actingAs($admin)
+            ->get(route('admin.salon-plan.index'))
+            ->assertOk()
+            ->assertSee('admin-initial.pdf')
+            ->assertSee('data-pdf-action="zoom-in"', false)
+            ->assertSee('data-pdf-action="fit-width"', false)
+            ->assertSee('data-pdf-action="fit-page"', false)
+            ->assertSee('data-pdf-action="fullscreen"', false);
+        $this->actingAs($admin)
+            ->get(route('admin.salon-plan.download'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($admin)
+            ->post(route('admin.salon-plan.replace'), ['document' => $this->pdf('admin-replacement.pdf')])
+            ->assertRedirect(route('admin.salon-plan.index'));
+
+        $replacement = SalonPlan::query()->findOrFail(1);
+        $this->assertSame('admin-replacement.pdf', $replacement->original_name);
+        $this->assertNotSame($firstPath, $replacement->file_path);
+        Storage::disk('local')->assertExists($replacement->file_path);
+        Storage::disk('local')->assertMissing($firstPath);
+
+        $this->actingAs($commercial)
+            ->get(route('commercial.salon-plan.index'))
+            ->assertOk()
+            ->assertSee('admin-replacement.pdf');
+        $this->actingAs($exhibitor->user)
+            ->get(route('exhibitor.salon-plan.index'))
+            ->assertOk()
+            ->assertSee('admin-replacement.pdf');
+
+        $this->actingAs($admin)
+            ->delete(route('admin.salon-plan.destroy'))
+            ->assertRedirect(route('admin.salon-plan.index'))
+            ->assertSessionHas('status');
+
+        $this->assertNull(SalonPlan::query()->findOrFail(1)->file_path);
+        $this->assertNull(SalonPlan::query()->findOrFail(1)->original_name);
+        Storage::disk('local')->assertMissing($replacement->file_path);
+        $this->actingAs($commercial)->get(route('commercial.salon-plan.index'))
+            ->assertOk()->assertSee('Le plan du salon sera disponible prochainement.');
+        $this->actingAs($exhibitor->user)->get(route('exhibitor.salon-plan.index'))
+            ->assertOk()->assertSee('Le plan du salon sera disponible prochainement.');
+    }
+
+    public function test_only_admin_can_manage_the_admin_plan_page_and_delete_the_shared_pdf(): void
+    {
+        Storage::fake('local');
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $commercial = $this->commercial();
+        $exhibitor = $this->exhibitor('ClimaTech');
+
+        $this->get(route('admin.salon-plan.index'))->assertRedirect(route('login'));
+        $this->get(route('admin.salon-plan.preview'))->assertRedirect(route('login'));
+        $this->get(route('admin.salon-plan.download'))->assertRedirect(route('login'));
+        $this->actingAs($commercial)->get(route('admin.salon-plan.index'))->assertForbidden();
+        $this->actingAs($exhibitor->user)->get(route('admin.salon-plan.index'))->assertForbidden();
+
+        $this->actingAs($commercial)
+            ->delete(route('admin.salon-plan.destroy'))
+            ->assertForbidden();
+        $this->actingAs($exhibitor->user)
+            ->post(route('admin.salon-plan.replace'), ['document' => $this->pdf()])
+            ->assertForbidden();
+
+        $this->assertSame(1, SalonPlan::query()->count());
+        $this->assertNull(SalonPlan::query()->findOrFail(1)->file_path);
+        $this->actingAs($admin)->get(route('admin.salon-plan.preview'))->assertNotFound();
+    }
+
     public function test_commercial_and_exhibitor_can_preview_and_download_private_pdf_with_correct_headers(): void
     {
         Storage::fake('local');

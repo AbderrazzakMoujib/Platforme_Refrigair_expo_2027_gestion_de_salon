@@ -55,6 +55,12 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->midd
 
 Route::middleware(['auth', 'role:admin'])->get('/admin', AdminDashboardController::class)->name('admin.index');
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/plan-salon', [SalonPlanController::class, 'admin'])->name('salon-plan.index');
+    Route::get('/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('salon-plan.preview');
+    Route::get('/plan-salon/telecharger', [SalonPlanController::class, 'download'])->name('salon-plan.download');
+    Route::post('/plan-salon', [SalonPlanController::class, 'replace'])->middleware('throttle:10,1')->name('salon-plan.replace');
+    Route::delete('/plan-salon', [SalonPlanController::class, 'destroy'])->name('salon-plan.destroy');
+
     Route::get('/commerciaux', [CommercialController::class, 'index'])->name('commerciaux.index');
     Route::get('/commerciaux/create', [CommercialController::class, 'create'])->name('commerciaux.create');
     Route::post('/commerciaux', [CommercialController::class, 'store'])->name('commerciaux.store');
@@ -503,13 +509,15 @@ Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     ]
     )->name('exhibitor.company.index');
 
+    Route::get(
+    '/exposant/profil',
+    [\App\Http\Controllers\ExhibitorCompanyController::class, 'profile']
+    )->name('exhibitor.profile');
+
     Route::put(
-    '/exposant/mon-entreprise',
-    [
-        \App\Http\Controllers\ExhibitorCompanyController::class,
-        'update'
-    ]
-    )->name('exhibitor.company.update');
+    '/exposant/profil',
+    [\App\Http\Controllers\ExhibitorCompanyController::class, 'update']
+    )->name('exhibitor.profile.update');
 
     
     Route::get(
