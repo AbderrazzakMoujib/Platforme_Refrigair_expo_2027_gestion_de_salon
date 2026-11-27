@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Badge;
 use App\Models\Salon;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\SvgWriter;
+use App\Services\BadgeQrCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -215,27 +214,13 @@ class ExhibitorBadgeController extends Controller
     // Accessible uniquement au propriétaire du badge.
     public function qr(
         Request $request,
-        Badge $badge
+        Badge $badge,
+        BadgeQrCodeService $qrCodes,
     ): Response {
         $this->owns($request, $badge);
 
-        // Ce lien mène au contrôle Admin.
-        $verificationUrl = route(
-            'admin.badges.verify',
-            $badge->qr_token
-        );
-
-        $qrCode = new QrCode(
-            data: $verificationUrl,
-            size: 280,
-            margin: 10
-        );
-
-        $writer = new SvgWriter();
-        $result = $writer->write($qrCode);
-
         return response(
-            $result->getString(),
+            $qrCodes->svg($badge, 280),
             200,
             [
                 'Content-Type' => 'image/svg+xml',

@@ -7,8 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Badge;
 use App\Models\BadgeActivityLog;
 use App\Models\Exhibitor;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\SvgWriter;
+use App\Services\BadgeQrCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,19 +62,7 @@ class BadgeController extends Controller
 
     private function qrDataUri(Badge $badge): string
     {
-        $url = route('admin.badges.verify', [
-            'token' => $badge->qr_token,
-        ]);
-
-        $qrCode = new QrCode(
-            data: $url,
-            size: 260,
-            margin: 10
-        );
-
-        return (new SvgWriter())
-            ->write($qrCode)
-            ->getDataUri();
+        return app(BadgeQrCodeService::class)->dataUri($badge);
     }
 
     /*

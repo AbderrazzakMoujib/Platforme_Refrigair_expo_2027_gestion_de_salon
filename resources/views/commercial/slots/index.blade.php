@@ -28,7 +28,7 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('commercial.slots.export.pdf', 'fr') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-200">Programme PDF</a>
+                <a href="{{ route('commercial.slots.export.pdf', 'fr') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-200"><img src="{{ $icon('file-pdf') }}" class="size-4" alt="" aria-hidden="true">Programme PDF</a>
                 <a href="{{ route('commercial.slots.export.csv') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:border-blue-200">Export CSV</a>
             </div>
         </header>

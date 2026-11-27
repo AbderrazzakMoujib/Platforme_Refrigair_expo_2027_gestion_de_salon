@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+[data-pdf-viewer]:fullscreen {
+    overflow-y: auto;
+    background: #fff;
+}
+
+[data-pdf-viewer]:fullscreen [data-pdf-stage] {
+    height: calc(100dvh - 108px);
+    max-height: none;
+}
+
 .conference-booking-input {
     display: block;
     width: 100%;
@@ -35,6 +45,56 @@ textarea.conference-booking-input {
     -webkit-text-fill-color: #0f172a;
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
     box-shadow: 0 0 0 1000px #fff inset;
+}
+
+/* Clear, consistent controls in the Conference & Lounge reservation dialog. */
+#create-reservation-dialog .conference-booking-input {
+    box-sizing: border-box;
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    color: #0f2347;
+    background-color: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 2px rgb(15 35 71 / 6%);
+    font-size: 0.925rem;
+    line-height: 1.4;
+}
+
+#create-reservation-dialog .conference-booking-input:hover:not(:disabled) {
+    border-color: #94a3b8;
+}
+
+#create-reservation-dialog .conference-booking-input:focus,
+#create-reservation-dialog .conference-booking-input:focus-visible {
+    border-color: #2563eb;
+    outline: 0;
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 14%);
+}
+
+#create-reservation-dialog .conference-booking-input:disabled {
+    color: #64748b;
+    background-color: #f1f5f9;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+}
+
+#create-reservation-dialog select.conference-booking-input {
+    padding-right: 2.75rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364758b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1rem;
+}
+
+#create-reservation-dialog textarea.conference-booking-input {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+#create-reservation-dialog input[type='radio'] {
+    accent-color: #2563eb;
 }
 
 .ui-toast-root {
@@ -135,6 +195,94 @@ textarea.conference-booking-input {
 
 @media (prefers-reduced-motion: reduce) {
     .ui-toast, .ui-toast__progress { animation: none; }
+}
+
+/* Shared form controls across all authenticated and guest areas. */
+@layer base {
+    input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']),
+    select,
+    textarea {
+        box-sizing: border-box;
+        min-height: 2.75rem;
+        padding: 0.65rem 0.875rem;
+        color: #0f2347;
+        background-color: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 2px rgb(15 35 71 / 5%);
+        font-size: 0.875rem;
+        line-height: 1.35rem;
+        transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    }
+
+    input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']):hover:not(:disabled),
+    select:hover:not(:disabled),
+    textarea:hover:not(:disabled) {
+        border-color: #94a3b8;
+    }
+
+    input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']):focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        border-color: #2563eb;
+        outline: 0;
+        box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
+    }
+
+    input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color']):disabled,
+    select:disabled,
+    textarea:disabled {
+        color: #64748b;
+        background-color: #f1f5f9;
+        border-color: #e2e8f0;
+        cursor: not-allowed;
+    }
+
+    input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']):not([type='reset']):not([type='image']):not([type='color'])::placeholder,
+    textarea::placeholder {
+        color: #94a3b8;
+        opacity: 1;
+    }
+
+    input[aria-invalid='true'],
+    select[aria-invalid='true'],
+    textarea[aria-invalid='true'] {
+        border-color: #dc2626;
+    }
+
+    select {
+        padding-right: 2.5rem;
+    }
+
+    textarea {
+        min-height: 5rem;
+        resize: vertical;
+    }
+
+    input[type='checkbox'],
+    input[type='radio'] {
+        accent-color: #2563eb;
+    }
+
+    input[type='file'] {
+        min-height: 2.75rem;
+        padding: 0.4rem;
+        color: #475569;
+        background-color: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+    }
+
+    input[type='file']::file-selector-button {
+        margin-right: 0.75rem;
+        padding: 0.45rem 0.75rem;
+        color: #0f2347;
+        background-color: #eff6ff;
+        border: 0;
+        border-radius: 0.5rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
 }
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

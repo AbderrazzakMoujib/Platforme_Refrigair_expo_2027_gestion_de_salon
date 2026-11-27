@@ -27,6 +27,7 @@ use App\Http\Controllers\ConferenceSupportInboxController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
 use App\Http\Controllers\ResponsableConferenceController;
+use App\Http\Controllers\SalonPlanController;
 
 
 Route::get('/', function () {
@@ -242,6 +243,10 @@ Route::get('/admin/badges/verify/{token}', [BadgeController::class, 'verify'])
 
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {
     Route::get('/commercial', [App\Http\Controllers\CommercialDashboardController::class, '__invoke'])->name('commercial.index');
+    Route::get('/commercial/plan-salon', [SalonPlanController::class, 'commercial'])->name('commercial.salon-plan.index');
+    Route::get('/commercial/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('commercial.salon-plan.preview');
+    Route::get('/commercial/plan-salon/telecharger', [SalonPlanController::class, 'download'])->name('commercial.salon-plan.download');
+    Route::post('/commercial/plan-salon', [SalonPlanController::class, 'replace'])->middleware('throttle:10,1')->name('commercial.salon-plan.replace');
     Route::get('/commercial/profil', [CommercialProfileController::class, 'edit'])->name('commercial.profile.edit');
     Route::put('/commercial/profil', [CommercialProfileController::class, 'update'])->name('commercial.profile.update');
     Route::get('/commercial/exposants', [CommercialExhibitorController::class, 'index'])->name('commercial.exhibitors.index');
@@ -468,10 +473,16 @@ Route::middleware(['auth', 'role:responsable_technique'])
         Route::get('/commerciaux', [\App\Http\Controllers\TechnicalDashboardController::class, 'commercials'])->name('commercials');
         Route::get('/commerciaux/{commercial}', [\App\Http\Controllers\TechnicalDashboardController::class, 'commercial'])->whereNumber('commercial')->name('commercial');
         Route::get('/conferences', [\App\Http\Controllers\TechnicalDashboardController::class, 'conferences'])->name('conferences');
+        Route::get('/profil', [\App\Http\Controllers\TechnicalProfileController::class, 'edit'])->name('profile');
+        Route::put('/profil', [\App\Http\Controllers\TechnicalProfileController::class, 'update'])->name('profile.update');
+        Route::put('/profil/mot-de-passe', [\App\Http\Controllers\TechnicalProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password');
     });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');
+    Route::get('/exposant/plan-salon', [SalonPlanController::class, 'exhibitor'])->name('exhibitor.salon-plan.index');
+    Route::get('/exposant/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('exhibitor.salon-plan.preview');
+    Route::get('/exposant/plan-salon/telecharger', [SalonPlanController::class, 'download'])->name('exhibitor.salon-plan.download');
     Route::resource('/exposant/badges', ExhibitorBadgeController::class)->except(['show'])->names('exhibitor.badges');
     Route::get(
     '/exposant/options-du-stand',
@@ -558,6 +569,8 @@ Route::middleware(['auth', 'role:exposant'])->group(function (): void {
     // Ouverture directe / rechargement de l'URL du formulaire : retour à la page.
     Route::get('/exposant/conferences/demandes', fn () => redirect()->route('exhibitor.slots.index'));
     Route::post('/exposant/conferences/demandes',[\App\Http\Controllers\ExhibitorSlotController::class, 'store'])->middleware('throttle:10,1')->name('exhibitor.slots.request');
+    Route::get('/exposant/conferences/programme-{locale}.pdf', [\App\Http\Controllers\SlotExportController::class, 'pdf'])
+        ->whereIn('locale', ['fr', 'en'])->name('exhibitor.slots.export.pdf');
     Route::post('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'uploadSupport'])->middleware('throttle:10,1')->whereNumber('slot')->name('exhibitor.slots.support.store');
     Route::get('/exposant/conferences/creneaux/{slot}/support', [\App\Http\Controllers\ExhibitorSlotController::class, 'downloadSupport'])->whereNumber('slot')->name('exhibitor.slots.support.download');
 

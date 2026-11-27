@@ -1,0 +1,137 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\SalonPlan;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Throwable;
+
+class SalonPlanController extends Controller
+{
+    private const DOCUMENT_ID = 1;
+
+    public function commercial(): View
+    {
+        return view('commercial.salon-plan.index', $this->viewData());
+    }
+
+    public function exhibitor(): View
+    {
+        return view('exhibitor.salon-plan.index', $this->viewData());
+    }
+
+    public function preview(): BinaryFileResponse
+    {
+        $plan = $this->availablePlan();
+
+        return $this->fileResponse($plan, ResponseHeaderBag::DISPOSITION_INLINE);
+    }
+
+    public function download(): BinaryFileResponse
+    {
+        $plan = $this->availablePlan();
+
+        return $this->fileResponse($plan, ResponseHeaderBag::DISPOSITION_ATTACHMENT);
+    }
+
+    public function replace(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'document' => [
+                'bail',
+                'required',
+                'file',
+                'mimetypes:application/pdf',
+                'max:20480',
+                static function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $value->isValid() || file_get_contents($value->getRealPath(), false, null, 0, 5) !== '%PDF-') {
+                        $fail('Le fichier doit être un document PDF valide.');
+                    }
+                },
+            ],
+        ], [
+            'document.max' => 'Le PDF ne peut pas dépasser 20 Mo.',
+            'document.mimetypes' => 'Seuls les fichiers PDF sont acceptés.',
+        ]);
+
+        $file = $validated['document'];
+        $disk = Storage::disk('local');
+        $newPath = $disk->putFileAs('salon-plan', $file, Str::uuid().'.pdf');
+
+        if (! is_string($newPath) || ! $disk->exists($newPath)) {
+            return back()->withErrors(['document' => 'Le PDF n’a pas pu être enregistré. Réessayez.']);
+        }
+
+        try {
+            $oldPath = DB::transaction(function () use ($request, $file, $newPath): ?string {
+                $plan = SalonPlan::query()->lockForUpdate()->findOrFail(self::DOCUMENT_ID);
+                $previousPath = $plan->file_path;
+
+                $plan->fill([
+                    'file_path' => $newPath,
+                    'original_name' => Str::limit(basename($file->getClientOriginalName()), 255, ''),
+                    'updated_by' => $request->user()->id,
+                ])->saveOrFail();
+
+                return $previousPath;
+            });
+        } catch (Throwable $exception) {
+            $disk->delete($newPath);
+            report($exception);
+
+            return back()->withErrors(['document' => 'Le remplacement a échoué. Le plan précédent est conservé.']);
+        }
+
+        if ($oldPath && $oldPath !== $newPath && ! SalonPlan::query()->where('file_path', $oldPath)->exists()) {
+            $disk->delete($oldPath);
+        }
+
+        return redirect()->route('commercial.salon-plan.index')->with('status', 'Le plan du salon a été mis à jour pour tous les utilisateurs.');
+    }
+
+    /** @return array{plan: SalonPlan, documentAvailable: bool} */
+    private function viewData(): array
+    {
+        $plan = SalonPlan::query()->findOrFail(self::DOCUMENT_ID);
+
+        return [
+            'plan' => $plan,
+            'documentAvailable' => filled($plan->file_path) && Storage::disk('local')->exists($plan->file_path),
+        ];
+    }
+
+    private function availablePlan(): SalonPlan
+    {
+        $plan = SalonPlan::query()->findOrFail(self::DOCUMENT_ID);
+        abort_unless(filled($plan->file_path) && Storage::disk('local')->exists($plan->file_path), 404);
+
+        return $plan;
+    }
+
+    private function fileResponse(SalonPlan $plan, string $disposition): BinaryFileResponse
+    {
+        $response = new BinaryFileResponse(
+            Storage::disk('local')->path($plan->file_path),
+            200,
+            ['Content-Type' => 'application/pdf'],
+            false,
+        );
+        $response->setContentDisposition($disposition, 'plan-du-salon.pdf');
+        $response->setPrivate();
+        $response->headers->addCacheControlDirective('no-store');
+        $response->headers->addCacheControlDirective('no-cache');
+        $response->headers->addCacheControlDirective('must-revalidate');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+        return $response;
+    }
+
+}

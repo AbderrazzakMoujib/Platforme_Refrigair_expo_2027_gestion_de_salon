@@ -99,9 +99,15 @@
                 innovations ou retours d'expérience.
             </p>
         </div>
-        <p class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-900">
-            Refrigair Expo 2027 · 2–4 février · OFEC Casablanca
-        </p>
+        <div class="flex flex-wrap items-center gap-2">
+            <p class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-900">
+                Refrigair Expo 2027 · 2–4 février · OFEC Casablanca
+            </p>
+            <a href="{{ route('exhibitor.slots.export.pdf', 'fr') }}" class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                <x-admin.icon name="file-pdf" class="size-4" />
+                Programme PDF
+            </a>
+        </div>
     </header>
     {{-- MESSAGES --}}
     @if (session('status'))

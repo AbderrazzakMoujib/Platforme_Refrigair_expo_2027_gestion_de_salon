@@ -209,12 +209,14 @@ class AdminBadgesTest extends TestCase
 
         $this->get(route('admin.badges.print', $badge))
             ->assertOk()
+            ->assertViewHas('qrImage', fn (string $image): bool => str_starts_with($image, 'data:image/svg+xml'))
             ->assertSee('REFRIGAIR EXPO');
 
         $this->get(route('admin.badges.print-selected', [
             'ids' => [$badge->id],
         ]))
             ->assertOk()
+            ->assertViewHas('items', fn ($items): bool => str_starts_with($items->first()['qrImage'], 'data:image/svg+xml'))
             ->assertSee('Ahmed Benali');
 
         $this->get(route('admin.badges.export'))

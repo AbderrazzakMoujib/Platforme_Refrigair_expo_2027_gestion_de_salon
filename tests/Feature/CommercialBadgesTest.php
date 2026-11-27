@@ -160,6 +160,9 @@ class CommercialBadgesTest extends TestCase
 
         $response = $this->actingAs($commercial)->post(route('commercial.badges.print-exhibitor', $exhibitor))->assertOk();
         $this->assertCount(2, $response->viewData('items'));
+        $this->assertTrue($response->viewData('items')->every(
+            fn (array $item): bool => str_starts_with($item['qrImage'], 'data:image/svg+xml')
+        ));
         $this->assertDatabaseCount('badge_activity_logs', 2);
 
         $this->post(route('commercial.badges.print-exhibitor', $foreign))->assertNotFound();

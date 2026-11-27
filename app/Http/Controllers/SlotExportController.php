@@ -18,11 +18,19 @@ class SlotExportController extends Controller
 
     public function pdf(Request $request, string $locale): Response
     {
-        Gate::authorize('view', Slot::class);
+        $exhibitorId = null;
+
+        if ($request->user()->role === UserRole::Exposant) {
+            abort_unless($request->user()->is_active, 403);
+            $exhibitorId = $request->user()->exhibitorProfile()->value('id');
+            abort_unless($exhibitorId, 404);
+        } else {
+            Gate::authorize('view', Slot::class);
+        }
 
         $data = [
             'locale' => $locale,
-            'days' => $this->visibleSlots($request)
+            'days' => $this->visibleSlots($request, $exhibitorId)
                 ->groupBy(fn (Slot $slot) => $slot->date->toDateString()),
             'spaces' => Space::query()->orderBy('id')->get(),
             'rules' => SlotCatalog::rules($locale),
@@ -85,23 +93,27 @@ class SlotExportController extends Controller
     }
 
     /** Commercial exports have the same client visibility as the planning page. */
-    private function visibleSlots(Request $request): \Illuminate\Support\Collection
+    private function visibleSlots(Request $request, ?int $exhibitorId = null): \Illuminate\Support\Collection
     {
         $slots = Slot::query()
             ->with(['space:id,type,name', 'exhibitor:id,company_name,commercial_id'])
             ->ordered()
             ->get();
 
-        if ($request->user()->role !== UserRole::Commercial) {
+        if ($request->user()->role !== UserRole::Commercial && $exhibitorId === null) {
             return $slots;
         }
 
-        return $slots->each(function (Slot $slot) use ($request): void {
+        return $slots->each(function (Slot $slot) use ($request, $exhibitorId): void {
             $ownerId = $slot->exhibitor_id !== null
                 ? $slot->exhibitor?->commercial_id
                 : $slot->commercial_id;
 
-            if ($ownerId === $request->user()->id) {
+            $isOwnSlot = $exhibitorId !== null
+                ? (int) $slot->exhibitor_id === (int) $exhibitorId
+                : (int) $ownerId === (int) $request->user()->id;
+
+            if ($isOwnSlot) {
                 return;
             }
 

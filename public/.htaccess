@@ -23,3 +23,8 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# PDF.js loads its locally bundled ES module worker from public/build.
+<IfModule mod_mime.c>
+    AddType text/javascript .mjs
+</IfModule>

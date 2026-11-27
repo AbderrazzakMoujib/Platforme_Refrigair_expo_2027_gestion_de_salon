@@ -10,6 +10,12 @@
             'active' => request()->routeIs('commercial.index'),
         ],
         [
+            'label' => 'Plan du Salon',
+            'icon' => 'map',
+            'route' => 'commercial.salon-plan.index',
+            'active' => request()->routeIs('commercial.salon-plan.*'),
+        ],
+        [
             'label' => 'Mes exposants',
             'icon' => 'users',
             'route' => 'commercial.exhibitors.index',

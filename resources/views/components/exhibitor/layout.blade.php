@@ -14,6 +14,12 @@
             'active' => request()->routeIs('exhibitor.company.*'),
         ],
         [
+            'label' => 'Plan du Salon',
+            'icon' => 'map',
+            'url' => route('exhibitor.salon-plan.index'),
+            'active' => request()->routeIs('exhibitor.salon-plan.*'),
+        ],
+        [
             'label' => 'Mes badges',
             'icon' => 'badge',
             'url' => route('exhibitor.badges.index'),
@@ -143,6 +149,12 @@
                                 >
                                     <rect x="4" y="3" width="16" height="18" rx="1"/>
                                     <path d="M9 21v-5h6v5M8 7h2m4 0h2M8 11h2m4 0h2"/>
+                                </svg>
+                                @break
+                            @case('map')
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/>
+                                    <path d="M9 3v15m6-12v15"/>
                                 </svg>
                                 @break
                             @case('badge')

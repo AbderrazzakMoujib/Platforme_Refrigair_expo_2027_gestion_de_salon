@@ -9,6 +9,7 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resources/js/salon-plan-viewer.js',
                 'resources/js/salon-crop.js',
             ],
             refresh: true,

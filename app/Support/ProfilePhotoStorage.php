@@ -9,9 +9,9 @@ use RuntimeException;
 
 class ProfilePhotoStorage
 {
-    public static function store(UploadedFile $photo): string
+    public static function store(UploadedFile $photo, string $directory = 'responsables-conferences'): string
     {
-        $path = $photo->store('responsables-conferences', 'public');
+        $path = $photo->store($directory, 'public');
 
         if (! is_string($path) || $path === '') {
             throw new RuntimeException('La photo de profil n’a pas pu être enregistrée.');
