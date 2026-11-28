@@ -61,6 +61,54 @@ class ExhibitorCatalogTest extends TestCase
         $this->assertSame('maison.test@example.test', $exhibitor->fresh()->email);
     }
 
+    public function test_catalog_completion_requires_all_five_valid_details_but_draft_does_not(): void
+    {
+        Storage::fake('local');
+        $commercial = $this->account('commercial', 'catalog-requirements-commercial@example.test');
+        $user = $this->account('exposant', 'catalog-requirements-exhibitor@example.test');
+        $exhibitor = $this->exhibitor($commercial, 'Required Fields Ltd');
+        $exhibitor->user()->associate($user)->save();
+
+        $this->actingAs($user)->put(route('exhibitor.catalog-profile.update'), [
+            'company_description' => 'Description complete',
+            'website' => 'https://required.example.test',
+            'email' => 'catalogue@required.example.test',
+            'phone' => '+212611223344',
+            'action' => 'complete',
+        ])->assertRedirect()
+            ->assertSessionHasErrors('logo')
+            ->assertSessionHas('_old_input.company_description', 'Description complete');
+        $this->assertDatabaseMissing('exhibitor_catalog_profiles', ['exhibitor_id' => $exhibitor->id]);
+
+        $this->put(route('exhibitor.catalog-profile.update'), [
+            'company_description' => 'Brouillon conserve',
+            'action' => 'draft',
+        ])->assertRedirect(route('exhibitor.catalog-profile.edit'));
+        $this->assertDatabaseHas('exhibitor_catalog_profiles', [
+            'exhibitor_id' => $exhibitor->id,
+            'status' => 'draft',
+            'company_description' => 'Brouillon conserve',
+        ]);
+
+        $this->put(route('exhibitor.catalog-profile.update'), [
+            'company_description' => 'Description valide',
+            'website' => 'not-a-url',
+            'email' => 'not-an-email',
+            'phone' => 'not-a-phone',
+            'action' => 'complete',
+        ])->assertSessionHasErrors(['website', 'email', 'phone']);
+
+        $this->put(route('exhibitor.catalog-profile.update'), [
+            'company_description' => 'Description conservee apres erreur',
+            'website' => '',
+            'email' => '',
+            'phone' => '',
+            'action' => 'complete',
+        ])->assertRedirect()
+            ->assertSessionHasErrors(['website', 'email', 'phone', 'logo'])
+            ->assertSessionHas('_old_input.company_description', 'Description conservee apres erreur');
+        $this->assertDatabaseHas('exhibitor_catalog_profiles', ['exhibitor_id' => $exhibitor->id, 'status' => 'draft']);
+    }
     public function test_catalog_upload_validation_and_logo_removal(): void
     {
         Storage::fake('local');
@@ -100,6 +148,15 @@ class ExhibitorCatalogTest extends TestCase
         $replacementPath = $exhibitor->fresh()->catalogProfile->logo_path;
         $this->assertNotSame($oldPath, $replacementPath);
         Storage::disk('local')->assertMissing($oldPath);
+        $this->put(route('exhibitor.catalog-profile.update'), [
+            'company_description' => 'Description complete',
+            'website' => 'https://example.test',
+            'email' => 'catalog@example.test',
+            'phone' => '+212611223344',
+            'remove_logo' => '1',
+            'action' => 'complete',
+        ])->assertSessionHasErrors('logo');
+        Storage::disk('local')->assertExists($replacementPath);
         $this->put(route('exhibitor.catalog-profile.update'), ['action' => 'draft', 'remove_logo' => '1'])->assertRedirect();
         Storage::disk('local')->assertMissing($replacementPath);
         $this->assertNull($exhibitor->fresh()->catalogProfile->logo_path);

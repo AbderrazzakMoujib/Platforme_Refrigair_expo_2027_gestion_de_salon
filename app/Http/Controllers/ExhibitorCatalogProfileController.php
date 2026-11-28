@@ -27,14 +27,37 @@ class ExhibitorCatalogProfileController extends Controller
             'company_description' => ['nullable', 'string', 'max:1000'],
             'website' => ['nullable', 'url', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:40'],
+            'phone' => ['nullable', 'string', 'max:40', 'regex:/^\+?[0-9][0-9\s().-]{5,38}$/'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
             'action' => ['required', 'in:draft,complete'],
         ]);
 
-        if ($validated['action'] === 'complete' && (blank($validated['company_description'] ?? null) || blank($validated['email'] ?? null))) {
-            return back()->withInput()->withErrors(['action' => 'Pour compléter la fiche, renseignez la description et l’e-mail professionnel.']);
+        if ($validated['action'] === 'complete') {
+            $missing = [];
+            foreach ([
+                'company_description' => 'La description est obligatoire pour finaliser la fiche.',
+                'website' => 'Le site web est obligatoire pour finaliser la fiche.',
+                'email' => 'L’e-mail professionnel est obligatoire pour finaliser la fiche.',
+                'phone' => 'Le téléphone professionnel est obligatoire pour finaliser la fiche.',
+            ] as $field => $message) {
+                if (blank($validated[$field] ?? null)) $missing[$field] = $message;
+            }
+
+            $hasNewLogo = $request->hasFile('logo');
+            $hasStoredLogo = !$request->boolean('remove_logo')
+                && $exhibitor->catalogProfile?->logo_path
+                && Storage::disk('local')->exists($exhibitor->catalogProfile->logo_path);
+            $hasExistingExhibitorLogo = !$request->boolean('remove_logo')
+                && !$exhibitor->catalogProfile?->logo_path
+                && $exhibitor->logo
+                && Storage::disk('public')->exists($exhibitor->logo);
+
+            if (!$hasNewLogo && !$hasStoredLogo && !$hasExistingExhibitorLogo) {
+                $missing['logo'] = 'Le logo est obligatoire pour finaliser la fiche.';
+            }
+
+            if ($missing !== []) return back()->withInput()->withErrors($missing);
         }
 
         $profile = $exhibitor->catalogProfile ?? new ExhibitorCatalogProfile(['exhibitor_id' => $exhibitor->id]);
@@ -47,7 +70,7 @@ class ExhibitorCatalogProfileController extends Controller
                 $newPath = $request->file('logo')->storeAs('exhibitor-catalog/logos/'.$exhibitor->id, Str::uuid().'.'.$extension, 'local');
                 if (!$newPath) throw new \RuntimeException('Le logo n’a pas pu être enregistré.');
                 $profile->logo_path = $newPath;
-            } elseif (!$profile->exists && !$request->boolean('remove_logo') && $exhibitor->logo && Storage::disk('public')->exists($exhibitor->logo)) {
+            } elseif (!$profile->logo_path && !$request->boolean('remove_logo') && $exhibitor->logo && Storage::disk('public')->exists($exhibitor->logo)) {
                 $extension = strtolower(pathinfo($exhibitor->logo, PATHINFO_EXTENSION));
                 $newPath = 'exhibitor-catalog/logos/'.$exhibitor->id.'/'.Str::uuid().'.'.$extension;
                 if (!$disk->put($newPath, Storage::disk('public')->get($exhibitor->logo))) throw new \RuntimeException('Le logo existant n’a pas pu être copié.');
