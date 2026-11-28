@@ -1,551 +1,902 @@
 
 <x-exhibitor.layout :user="$user" :exhibitor="$exhibitor">
 
-<div class="space-y-6">
+@php
+    $fmt = fn ($value) => number_format((int) $value, 0, ',', ' ');
 
-    <!-- HEADER -->
-    <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    $standImage = asset(
+        'assets/conferences/images/Stand d’exposition bleu et blanc moderne.png'
+    );
 
-        <div>
-            <nav class="mb-3 text-sm text-slate-500">
-                <span>Espace exposant</span>
-                <span class="mx-2">/</span>
-                <span class="font-semibold text-[#2563EB]">
-                    Vue globale
-                </span>
-            </nav>
+    $catalogLabels = [
+        'completed' => 'Complétée',
+        'draft' => 'En cours',
+        'empty' => 'Non remplie',
+    ];
 
-            <div class="flex items-center gap-3">
-                <span class="grid size-12 place-items-center rounded-2xl bg-blue-100 text-blue-700">
-                    <svg viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         class="size-6" aria-hidden="true">
-                        <rect x="3" y="3" width="7" height="7" rx="1"/>
-                        <rect x="14" y="3" width="7" height="7" rx="1"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        <rect x="14" y="14" width="7" height="7" rx="1"/>
-                    </svg>
-                </span>
+    $catalogLabel = $catalogLabels[$catalogStatus] ?? 'Non remplie';
 
-                <div>
-                    <h1 class="text-2xl font-extrabold text-[#0F2347] sm:text-3xl">
-                        Vue globale
-                    </h1>
-                    <p class="mt-1 text-sm text-slate-500">
-                        Bonjour, {{ $user->name }}. Bienvenue dans votre espace exposant.
-                    </p>
-                </div>
+    $catalogClasses = match ($catalogStatus) {
+        'completed' => 'text-emerald-700',
+        'draft' => 'text-amber-700',
+        default => 'text-slate-600',
+    };
+
+    $catalogBackground = match ($catalogStatus) {
+        'completed' => 'bg-emerald-50 border-emerald-100',
+        'draft' => 'bg-amber-50 border-amber-100',
+        default => 'bg-slate-50 border-slate-200',
+    };
+
+    $activityStyles = [
+        'catalog' => [
+            'icon' => 'clipboard-check',
+            'class' => 'bg-emerald-50 text-emerald-600',
+        ],
+        'equipment' => [
+            'icon' => 'box',
+            'class' => 'bg-violet-50 text-violet-600',
+        ],
+        'badge' => [
+            'icon' => 'badge',
+            'class' => 'bg-orange-50 text-orange-600',
+        ],
+    ];
+@endphp
+
+<div class="space-y-5 pb-8">
+
+    {{-- ======================================== --}}
+    {{-- 1. EN-TETE                              --}}
+    {{-- ======================================== --}}
+
+    <section class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+        <div class="flex min-w-0 items-center gap-4">
+
+            <div class="grid size-14 shrink-0 place-items-center rounded-2xl bg-blue-600 text-white shadow-sm">
+                <x-admin.icon name="storefront" class="size-7"/>
             </div>
+
+            <div class="min-w-0">
+
+                <p class="text-sm font-medium text-slate-600">
+                    Bonjour, {{ $exhibitor?->company_name ?? $user->name }}
+                </p>
+
+                <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-[#0F2347] sm:text-3xl">
+                    Mon tableau de bord
+                </h1>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Vue globale — Suivi de ma participation à REFRIGAIR EXPO 2027.
+                </p>
+
+            </div>
+
         </div>
 
-        <!-- EVENT BANNER -->
-        <div class="min-w-0 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 shadow-sm xl:min-w-80">
-            <div class="flex items-center gap-3">
-                <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-100 text-blue-700">
-                    <svg viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         class="size-6" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="2"/>
-                        <path d="M7 3v4M17 3v4M3 10h18"/>
-                    </svg>
-                </span>
+        
+{{-- BANNIÈRE OFFICIELLE REFRIGAIR EXPO 2027 --}}
 
-                <div class="min-w-0">
-                    <p class="font-extrabold text-[#0F2347]">
-                        {{ $salon?->name ?? 'Refrigair Expo 2027' }}
-                    </p>
+<div class="w-full min-w-0 overflow-hidden rounded-2xl border border-blue-100 bg-[#DFF2F8] shadow-sm lg:w-[570px] lg:shrink-0">
+    <img
+        src="{{ asset('assets/images/refrig_air_expo_cover.jpg') }}"
+        alt="REFRIGAIR EXPO 2027 — Du 2 au 4 février 2027, OFEC Casablanca"
+        class="block h-auto w-full object-contain"
+        loading="eager"
+        decoding="async"
+    >
+</div>
 
-                    @if ($salon)
-                        <p class="mt-1 text-xs leading-5 text-slate-600">
-                            {{ $salon->start_date?->format('d/m/Y') }}
-                            —
-                            {{ $salon->end_date?->format('d/m/Y') }}
 
-                            @if ($salon->venue)
-                                · {{ $salon->venue }}
-                            @endif
-
-                            @if ($salon->city)
-                                · {{ $salon->city }}
-                            @endif
-                        </p>
-                    @else
-                        <p class="mt-1 text-xs text-slate-500">
-                            Informations du prochain salon à venir.
-                        </p>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-    </div>
+    </section>
 
     @if ($exhibitor)
 
-        @php
-            $authorized = (int) $exhibitor->authorized_badges;
-            $registered = (int) $badgeCount;
-            $remaining = max(0, $authorized - $registered);
+        {{-- ======================================== --}}
+        {{-- 2. KPI                                 --}}
+        {{-- ======================================== --}}
 
-            $progress = $authorized > 0
-                ? min(100, round($registered / $authorized * 100))
-                : 0;
+        <section
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-label="Indicateurs de participation"
+        >
 
-            $companyInitials = collect(
-                preg_split('/\s+/', trim($exhibitor->company_name))
-            )
-                ->filter()
-                ->take(2)
-                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
-                ->implode('') ?: 'E';
-        @endphp
+            {{-- FICHE CATALOGUE --}}
 
-        <!-- KPIs -->
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-                 aria-label="Statistiques de votre participation">
+            <a
+                href="{{ route('exhibitor.catalog-profile.edit') }}"
+                class="group flex min-w-0 flex-col justify-between rounded-2xl border {{ $catalogBackground }} p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+                <div class="flex items-center justify-between gap-3">
 
-            <!-- BADGES -->
-            <article class="flex items-center gap-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-sm">
-                <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-600">
-                    <svg class="size-7" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         aria-hidden="true">
-                        <circle cx="9" cy="8" r="3"/>
-                        <path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v1"/>
-                    </svg>
-                </span>
-                <div>
-                    <p class="text-sm font-semibold text-slate-600">Mes badges</p>
-                    <p class="mt-1 text-3xl font-extrabold text-[#0F2347]">
-                        {{ $registered }}
-                        <span class="text-xl font-medium text-slate-400">/ {{ $authorized }}</span>
+                    <span class="grid size-12 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                        <x-admin.icon name="layers" class="size-6"/>
+                    </span>
+
+                    <span class="text-emerald-600 group-hover:translate-x-1">
+                        &rarr;
+                    </span>
+
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-sm font-bold text-[#0F2347]">
+                        Fiche catalogue
+                    </p>
+
+                    <p class="mt-2 text-2xl font-extrabold {{ $catalogClasses }}">
+                        {{ $catalogLabel }}
+                    </p>
+
+                    <p class="mt-2 text-xs text-slate-600">
+                        {{ $catalogCompleted
+                            ? 'Votre fiche est finalisée.'
+                            : 'Complétez les informations de votre entreprise.' }}
                     </p>
                 </div>
-            </article>
+            </a>
 
-            <!-- ALL REQUESTS -->
-            <article class="flex items-center gap-4 rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm">
-                <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-600">
-                    <svg class="size-7" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         aria-hidden="true">
-                        <rect x="4" y="7" width="16" height="14" rx="2"/>
-                        <path d="M9 7V5a3 3 0 0 1 6 0v2"/>
-                    </svg>
-                </span>
-                <div>
-                    <p class="text-sm font-semibold text-slate-600">Demandes d'équipements</p>
-                    <p class="mt-1 text-3xl font-extrabold text-[#0F2347]">
-                        {{ $requestsCount }}
+            {{-- BADGES --}}
+
+            <a
+                href="{{ route('exhibitor.badges.index') }}"
+                class="group flex min-w-0 flex-col justify-between rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+                <div class="flex items-center justify-between">
+
+                    <span class="grid size-12 place-items-center rounded-xl bg-orange-100 text-orange-600">
+                        <x-admin.icon name="badge" class="size-6"/>
+                    </span>
+
+                    <span class="text-orange-600">&rarr;</span>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-sm font-bold text-[#0F2347]">
+                        Badges enregistrés
+                    </p>
+
+                    <p class="mt-2 text-3xl font-extrabold text-[#0F2347]">
+                        {{ $fmt($badgeCount) }}
+                        <span class="text-lg font-medium text-slate-400">
+                            / {{ $fmt($authorizedBadges) }}
+                        </span>
+                    </p>
+
+                    <p class="mt-2 text-xs text-slate-600">
+                        {{ $remainingBadges }} badge(s) restant(s)
+                        · {{ $badgeProgress }} %
                     </p>
                 </div>
-            </article>
+            </a>
 
-            <!-- APPROVED -->
-            <article class="flex items-center gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-sm">
-                <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-emerald-600">
-                    <svg class="size-7" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         aria-hidden="true">
-                        <circle cx="12" cy="12" r="9"/>
-                        <path d="m7 12 3 3 6-6"/>
-                    </svg>
-                </span>
-                <div>
-                    <p class="text-sm font-semibold text-slate-600">Demandes approuvées</p>
-                    <p class="mt-1 text-3xl font-extrabold text-[#0F2347]">
-                        {{ $approvedRequests }}
+            {{-- EQUIPEMENTS --}}
+
+            <a
+                href="{{ route('exhibitor.requests.index') }}"
+                class="group flex min-w-0 flex-col justify-between rounded-2xl border border-violet-100 bg-violet-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+                <div class="flex items-center justify-between">
+
+                    <span class="grid size-12 place-items-center rounded-xl bg-violet-100 text-violet-600">
+                        <x-admin.icon name="box" class="size-6"/>
+                    </span>
+
+                    <span class="text-violet-600">&rarr;</span>
+                </div>
+
+                <div class="mt-4">
+
+                    <p class="text-sm font-bold text-[#0F2347]">
+                        Demandes d'équipements
+                    </p>
+
+                    <p class="mt-2 text-3xl font-extrabold text-[#0F2347]">
+                        {{ $fmt($requestsCount) }}
+                    </p>
+
+                    <p class="mt-2 text-xs text-slate-600">
+                        {{ $pendingRequests }} en attente
+                        · {{ $approvedRequests }} approuvée(s)
                     </p>
                 </div>
-            </article>
+            </a>
 
-            <!-- PENDING -->
-            <article class="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50/60 p-5 shadow-sm">
-                <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-600">
-                    <svg class="size-7" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         aria-hidden="true">
-                        <circle cx="12" cy="12" r="9"/>
-                        <path d="M12 7v5l3 3"/>
-                    </svg>
-                </span>
-                <div>
-                    <p class="text-sm font-semibold text-slate-600">En attente</p>
-                    <p class="mt-1 text-3xl font-extrabold text-[#0F2347]">
-                        {{ $pendingRequests }}
+            {{-- CONFERENCES --}}
+
+            <a
+                href="{{ route('exhibitor.slots.index') }}"
+                class="group flex min-w-0 flex-col justify-between rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+
+                <div class="flex items-center justify-between">
+
+                    <span class="grid size-12 place-items-center rounded-xl bg-blue-100 text-blue-600">
+                        <x-admin.icon name="calendar" class="size-6"/>
+                    </span>
+
+                    <span class="text-blue-600">&rarr;</span>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-sm font-bold text-[#0F2347]">
+                        Conférences & Lounge
+                    </p>
+
+                    <p class="mt-2 text-3xl font-extrabold text-[#0F2347]">
+                        {{ $fmt($reservedSlotsCount) }}
+                    </p>
+
+                    <p class="mt-2 text-xs text-slate-600">
+                        Créneau(x) réservé(s) ou payé(s)
                     </p>
                 </div>
-            </article>
+            </a>
 
         </section>
 
-        <!-- COMPANY + STAND + QUOTA -->
-        <section class="grid items-stretch gap-5 xl:grid-cols-12">
+        {{-- ======================================== --}}
+        {{-- 3. DOSSIER + STAND                     --}}
+        {{-- ======================================== --}}
 
-            <!-- COMPANY -->
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-5">
+        <section class="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2">
 
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-lg font-extrabold text-[#0F2347]">
-                        Mon entreprise
-                    </h2>
+            {{-- PROGRESSION DU DOSSIER --}}
 
-                    <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                        Exposant
-                    </span>
-                </div>
+            <article class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 
-                <div class="mt-5 flex items-center gap-4 rounded-xl bg-[#F5F7FB] p-4">
-
-                    @if ($exhibitor->logo)
-                        <img
-                            src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($exhibitor->logo) }}"
-                            alt="Logo {{ $exhibitor->company_name }}"
-                            class="size-20 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-2"
-                        >
-                    @else
-                        <span class="grid size-20 shrink-0 place-items-center rounded-xl bg-white text-xl font-extrabold text-blue-700">
-                            {{ $companyInitials }}
-                        </span>
-                    @endif
-
-                    <div class="min-w-0">
-                        <h3 class="break-words text-lg font-extrabold text-[#0F2347]">
-                            {{ $exhibitor->company_name }}
-                        </h3>
-                        <p class="mt-1 text-sm text-slate-500">
-                            Entreprise participante
-                        </p>
-                    </div>
-                </div>
-
-                <dl class="mt-5 divide-y divide-slate-100">
-                    <div class="flex justify-between gap-3 py-3 text-sm">
-                        <dt class="text-slate-500">Responsable</dt>
-                        <dd class="text-right font-semibold text-[#0F2347]">
-                            {{ $exhibitor->contact_name ?: '—' }}
-                        </dd>
-                    </div>
-
-                    <div class="flex justify-between gap-3 py-3 text-sm">
-                        <dt class="text-slate-500">Téléphone</dt>
-                        <dd class="text-right font-semibold text-[#0F2347]">
-                            {{ $exhibitor->phone ?: '—' }}
-                        </dd>
-                    </div>
-
-                    <div class="flex justify-between gap-3 py-3 text-sm">
-                        <dt class="text-slate-500">Email</dt>
-                        <dd class="min-w-0 break-all text-right font-semibold text-[#0F2347]">
-                            {{ $exhibitor->email ?: '—' }}
-                        </dd>
-                    </div>
-                </dl>
-
-            </article>
-
-            <!-- STAND -->
-            <article id="mon-stand"
-                     class="scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
-
-                <h2 class="text-lg font-extrabold text-[#0F2347]">
-                    Mon stand
+                <h2 class="flex items-center gap-2 text-lg font-bold text-[#0F2347]">
+                    <x-admin.icon name="chart" class="text-blue-600"/>
+                    Progression de mon dossier
                 </h2>
 
                 <p class="mt-1 text-xs text-slate-500">
-                    Informations de mon stand et de ma participation.
+                    Suivi de la fiche catalogue et des badges.
                 </p>
 
-                <div class="mt-5 grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                <div class="mt-6 flex flex-col items-center gap-6 sm:flex-row">
 
-                    <div>
-                        <p class="text-xs text-slate-500">Numéro</p>
-                        <p class="mt-2 text-2xl font-extrabold text-blue-700">
-                            {{ $exhibitor->stand_number ?: '—' }}
-                        </p>
-                    </div>
+                    <div
+                        class="grid size-44 shrink-0 place-items-center rounded-full"
+                        style="background: conic-gradient(#16A34A {{ $dossierProgress }}%, #E2E8F0 {{ $dossierProgress }}% 100%);"
+                        role="progressbar"
+                        aria-label="Progression de mon dossier"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="{{ $dossierProgress }}"
+                    >
+                        <div class="grid size-32 place-items-center rounded-full bg-white">
 
-                    <div class="border-l border-blue-200 pl-4">
-                        <p class="text-xs text-slate-500">Superficie</p>
-                        <p class="mt-2 text-2xl font-extrabold text-[#0F2347]">
-                            {{ $exhibitor->area_sqm !== null
-                                ? number_format((float) $exhibitor->area_sqm, 2, ',', ' ') . ' m²'
-                                : '—' }}
-                        </p>
-                    </div>
-
-                </div>
-
-                <div class="mt-5 border-t border-slate-100 pt-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Commercial référent
-                    </p>
-
-                    @if ($exhibitor->commercial)
-                        <div class="mt-3 flex items-center gap-3">
-
-                            @if ($exhibitor->commercial->profile_photo)
-                                <img
-                                    src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($exhibitor->commercial->profile_photo) }}"
-                                    alt="Photo du commercial"
-                                    class="size-11 shrink-0 rounded-full object-cover"
-                                >
-                            @else
-                                <span class="grid size-11 shrink-0 place-items-center rounded-full bg-blue-100 font-bold text-blue-700">
-                                    {{ mb_strtoupper(mb_substr($exhibitor->commercial->name, 0, 1)) }}
-                                </span>
-                            @endif
-
-                            <div class="min-w-0 flex-1">
-                                <p class="font-bold text-[#0F2347]">
-                                    {{ $exhibitor->commercial->name }}
-                                </p>
-                                <p class="truncate text-xs text-slate-500">
-                                    {{ $exhibitor->commercial->email }}
-                                </p>
-                            </div>
-
-                            @if ($exhibitor->commercial->email)
-                                <a href="mailto:{{ $exhibitor->commercial->email }}"
-                                   title="Contacter mon commercial"
-                                   class="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
-                                    Email
-                                </a>
-                            @endif
-
-                        </div>
-                    @else
-                        <p class="mt-3 text-sm text-slate-500">
-                            Aucun commercial attribué.
-                        </p>
-                    @endif
-                </div>
-
-            </article>
-
-            <!-- QUOTA -->
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-3">
-
-                <h2 class="text-lg font-extrabold text-[#0F2347]">
-                    Quota de badges
-                </h2>
-
-                <div class="mt-6 flex justify-center">
-                    <div class="relative grid size-36 place-items-center rounded-full"
-                         style="background: conic-gradient(#2563EB {{ $progress }}%, #E2E8F0 {{ $progress }}% 100%);">
-
-                        <div class="grid size-28 place-items-center rounded-full bg-white">
                             <div class="text-center">
                                 <p class="text-3xl font-extrabold text-[#0F2347]">
-                                    {{ $progress }}%
+                                    {{ $dossierProgress }} %
                                 </p>
+
                                 <p class="text-xs text-slate-500">
-                                    Utilisé
+                                    Préparation
                                 </p>
                             </div>
+
+                        </div>
+                    </div>
+
+                    <div class="w-full min-w-0 flex-1 divide-y divide-slate-100">
+
+                        <div class="flex items-center justify-between gap-3 py-3">
+                            <span class="text-sm font-semibold text-slate-700">
+                                Fiche catalogue
+                            </span>
+                            <span class="text-xs font-bold {{ $catalogClasses }}">
+                                {{ $catalogLabel }}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 py-3">
+                            <span class="text-sm font-semibold text-slate-700">
+                                Badges ({{ $badgeCount }}/{{ $authorizedBadges }})
+                            </span>
+                            <span class="text-xs font-bold text-blue-700">
+                                {{ $badgeProgress }} %
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 py-3">
+                            <span class="text-sm font-semibold text-slate-700">
+                                Équipements
+                            </span>
+
+                            <span class="text-right text-xs font-semibold text-amber-700">
+                                {{ $pendingRequests > 0
+                                    ? $pendingRequests . ' demande(s) en attente'
+                                    : $requestsCount . ' demande(s)' }}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 py-3">
+                            <span class="text-sm font-semibold text-slate-700">
+                                Conférences & Lounge
+                            </span>
+
+                            <span class="text-right text-xs font-semibold text-blue-700">
+                                {{ $reservedSlotsCount }}
+                                créneau(x) confirmé(s)
+                            </span>
                         </div>
 
                     </div>
+
+                </div>
+            </article>
+
+            {{-- MON STAND --}}
+
+            <article
+                id="mon-stand"
+                class="min-w-0 scroll-mt-28 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+
+                <div class="px-5 pt-5 sm:px-6 sm:pt-6">
+
+                    <h2 class="flex items-center gap-2 text-lg font-bold text-[#0F2347]">
+                        <x-admin.icon name="storefront" class="text-blue-600"/>
+                        Mon stand
+                    </h2>
+
+                    <p class="mt-1 text-xs text-slate-500">
+                        Informations de votre espace d'exposition.
+                    </p>
                 </div>
 
-                <p class="mt-5 text-center text-sm text-slate-600">
-                    <strong class="text-[#0F2347]">{{ $registered }}</strong>
-                    badge(s) enregistré(s) sur
-                    <strong class="text-[#0F2347]">{{ $authorized }}</strong>
-                    autorisés
-                </p>
+                <div class="relative mt-4 bg-gradient-to-br from-blue-50 via-white to-slate-50 px-4 pb-4">
 
-                <p class="mt-2 text-center text-xs text-slate-500">
-                    {{ $remaining }} badge(s) restant(s)
-                </p>
+                    {{-- IMAGE GENERIQUE DU STAND --}}
+                    <img
+                        src="{{ $standImage }}"
+                        alt="Illustration d'un stand modulaire bleu et blanc"
+                        class="mx-auto h-64 w-full object-contain sm:h-72"
+                        loading="lazy"
+                    >
 
-                <a href="{{ route('exhibitor.badges.index') }}"
-                   class="mt-5 block rounded-xl border border-blue-200 px-4 py-3 text-center text-sm font-bold text-blue-700 hover:bg-blue-50">
-                    Gérer mes badges
-                </a>
+                    {{-- INFORMATIONS REELLES --}}
+                    <div class="absolute left-5 top-4 max-w-[55%] rounded-xl border border-blue-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
 
-                @if ($remaining > 0)
-                    <a href="{{ route('exhibitor.badges.create') }}"
-                       class="mt-2 block rounded-xl bg-[#2563EB] px-4 py-3 text-center text-sm font-bold text-white hover:bg-blue-700">
-                        + Ajouter un badge
+                        <p class="text-xs font-semibold text-slate-500">
+                            Numéro de stand
+                        </p>
+
+                        <p class="mt-1 text-xl font-extrabold text-[#0F2347]">
+                            {{ $exhibitor->stand_number ?: 'À attribuer' }}
+                        </p>
+
+                        <p class="mt-1 text-xs text-slate-600">
+                            {{ $exhibitor->area_sqm !== null
+                                ? number_format((float) $exhibitor->area_sqm, 2, ',', ' ') . ' m²'
+                                : 'Superficie non renseignée' }}
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:px-6">
+
+                    <span class="text-xs text-slate-500">
+                        Visuel indicatif — stand modulaire non contractuel.
+                    </span>
+
+                    <a
+                        href="{{ route('exhibitor.company.index') }}"
+                        class="text-sm font-bold text-blue-600 hover:underline"
+                    >
+                        Mes informations &rarr;
                     </a>
-                @endif
+
+                </div>
 
             </article>
 
         </section>
 
-        <!-- REQUESTS + COUNTDOWN -->
-        <section class="grid items-stretch gap-5 xl:grid-cols-12">
+        {{-- ======================================== --}}
+        {{-- 4. ACTIVITES + ACTIONS RAPIDES          --}}
+        {{-- ======================================== --}}
 
-            <!-- RECENT REQUESTS -->
-            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-8">
+        <section class="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2">
 
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-5">
-                    <div>
-                        <h2 class="text-lg font-extrabold text-[#0F2347]">
-                            Mes dernières demandes d'équipements
-                        </h2>
-                        <p class="mt-1 text-xs text-slate-500">
-                            Suivi de mes demandes récentes
-                        </p>
-                    </div>
+            {{-- ACTIVITES RECENTES --}}
 
-                    <a href="{{ route('exhibitor.stand-options.index', ['demandes' => 1]) }}#mes-demandes"
-                       class="text-sm font-bold text-blue-700 hover:underline">
-                        Voir toutes les demandes
+            <article class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+
+                    <h2 class="flex items-center gap-2 text-lg font-bold text-[#0F2347]">
+                        <x-admin.icon name="chart" class="text-blue-600"/>
+                        Mes dernières activités
+                    </h2>
+
+                    <a
+                        href="{{ route('exhibitor.notifications.index') }}"
+                        class="text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                        Notifications &rarr;
                     </a>
+
                 </div>
 
-                <div class="divide-y divide-slate-100 px-6">
+                <div class="divide-y divide-slate-100">
 
-                    @forelse ($recentRequests as $order)
+                    @forelse ($activities as $activity)
 
                         @php
-                            $firstItem = $order->items->first();
-                            $otherItems = max(0, $order->items->count() - 1);
-
-                            $statusLabel = match ($order->status) {
-                                'approved' => 'Approuvée',
-                                'rejected' => 'Refusée',
-                                default => 'En attente',
-                            };
-
-                            $statusColor = match ($order->status) {
-                                'approved' => 'bg-emerald-50 text-emerald-700',
-                                'rejected' => 'bg-red-50 text-red-700',
-                                default => 'bg-amber-50 text-amber-700',
-                            };
+                            $activityStyle = $activityStyles[$activity['type']]
+                                ?? $activityStyles['equipment'];
                         @endphp
 
-                        <div class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center">
+                        <a
+                            href="{{ $activity['url'] }}"
+                            class="flex min-w-0 items-center gap-3 py-3 transition hover:bg-slate-50"
+                        >
 
-                            <div class="flex min-w-0 flex-1 items-center gap-3">
+                            <span class="grid size-10 shrink-0 place-items-center rounded-xl {{ $activityStyle['class'] }}">
+                                <x-admin.icon
+                                    :name="$activityStyle['icon']"
+                                    class="size-5"
+                                />
+                            </span>
 
-                                @if ($firstItem?->equipment?->image_path)
-                                    <img
-                                        src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($firstItem->equipment->image_path) }}"
-                                        alt="{{ $firstItem->equipment_name }}"
-                                        class="size-12 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-1"
-                                    >
-                                @else
-                                    <span class="grid size-12 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700">
-                                        <svg class="size-6" viewBox="0 0 24 24"
-                                             fill="none" stroke="currentColor"
-                                             stroke-width="1.8" aria-hidden="true">
-                                            <path d="m12 2 9 5-9 5-9-5 9-5ZM3 7v10l9 5 9-5V7M12 12v10"/>
-                                        </svg>
-                                    </span>
-                                @endif
-
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-bold text-[#0F2347]">
-                                        {{ $firstItem?->equipment_name ?? 'Demande d’équipements' }}
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-slate-500">
-                                        @if ($firstItem)
-                                            {{ $firstItem->quantity }} unité(s)
-                                            @if ($otherItems > 0)
-                                                · +{{ $otherItems }} autre(s) article(s)
-                                            @endif
-                                        @else
-                                            Demande #{{ $order->id }}
-                                        @endif
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap items-center gap-4 sm:justify-end">
-                                <span class="whitespace-nowrap text-xs text-slate-500">
-                                    {{ $order->created_at?->format('d/m/Y') }}
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-semibold text-[#0F2347]">
+                                    {{ $activity['title'] }}
                                 </span>
+                            </span>
 
-                                <span class="whitespace-nowrap text-sm font-bold text-[#0F2347]">
-                                    {{ number_format((float) $order->total_amount, 2, ',', ' ') }} DH
-                                </span>
+                            <span class="shrink-0 text-xs text-slate-400">
+                                {{ $activity['date']?->locale('fr')->diffForHumans() }}
+                            </span>
 
-                                <span class="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold {{ $statusColor }}">
-                                    {{ $statusLabel }}
-                                </span>
-                            </div>
-
-                        </div>
+                        </a>
 
                     @empty
 
-                        <div class="py-12 text-center">
-                            <p class="font-semibold text-slate-700">
-                                Aucune demande pour le moment
-                            </p>
-                            <p class="mt-2 text-sm text-slate-500">
-                                Consultez les options disponibles pour votre stand.
-                            </p>
-                        </div>
+                        <p class="py-10 text-center text-sm text-slate-500">
+                            Aucune activité récente.
+                        </p>
 
                     @endforelse
 
                 </div>
 
-                <div class="border-t border-slate-100 p-5">
-                    <a href="{{ route('exhibitor.stand-options.index') }}"
-                       class="inline-flex rounded-xl bg-[#2563EB] px-5 py-3 text-sm font-bold text-white hover:bg-blue-700">
-                        Consulter les options du stand
-                    </a>
-                </div>
-
             </article>
 
-            <!-- COUNTDOWN -->
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
+            {{-- ACTIONS RAPIDES --}}
 
-                <h2 class="text-lg font-extrabold text-[#0F2347]">
-                    Jours avant l'événement
+            <article class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+
+                <h2 class="mb-5 flex items-center gap-2 text-lg font-bold text-[#0F2347]">
+                    <x-admin.icon name="zap" class="text-blue-600"/>
+                    Actions rapides
                 </h2>
 
-                <div class="mt-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 px-5 py-9 text-center">
-                    @if ($salon && $daysRemaining !== null)
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 
-                        <p class="text-6xl font-extrabold text-[#2563EB]">
-                            {{ $daysRemaining }}
-                        </p>
+                    <a
+                        href="{{ route('exhibitor.catalog-profile.edit') }}"
+                        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-800 transition hover:bg-emerald-100"
+                    >
 
-                        <p class="mt-3 text-sm font-semibold text-[#0F2347]">
-                            {{ $daysRemaining === 0
-                                ? 'Le salon a commencé ou commence aujourd’hui'
-                                : 'jour(s) restant(s)' }}
-                        </p>
+                        <span class="grid size-11 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                            <x-admin.icon name="layers" class="size-6"/>
+                        </span>
 
-                    @else
+                        Modifier ma fiche catalogue
+                    </a>
 
-                        <p class="text-2xl font-bold text-[#0F2347]">
-                            À venir
-                        </p>
+                    <a
+                        href="{{ route('exhibitor.badges.index') }}"
+                        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl bg-orange-50 p-3 text-center text-xs font-bold text-orange-800 transition hover:bg-orange-100"
+                    >
 
-                        <p class="mt-3 text-sm text-slate-600">
-                            Les dates du prochain salon seront affichées ici.
-                        </p>
+                        <span class="grid size-11 place-items-center rounded-xl bg-orange-100 text-orange-600">
+                            <x-admin.icon name="badge" class="size-6"/>
+                        </span>
 
-                    @endif
+                        Gérer mes badges
+                    </a>
+
+                    <a
+                        href="{{ route('exhibitor.stand-options.index') }}"
+                        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl bg-violet-50 p-3 text-center text-xs font-bold text-violet-800 transition hover:bg-violet-100"
+                    >
+
+                        <span class="grid size-11 place-items-center rounded-xl bg-violet-100 text-violet-600">
+                            <x-admin.icon name="box" class="size-6"/>
+                        </span>
+
+                        Demander des équipements
+                    </a>
+
+                    <a
+                        href="{{ route('exhibitor.slots.index') }}"
+                        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl bg-blue-50 p-3 text-center text-xs font-bold text-blue-800 transition hover:bg-blue-100"
+                    >
+
+                        <span class="grid size-11 place-items-center rounded-xl bg-blue-100 text-blue-600">
+                            <x-admin.icon name="calendar" class="size-6"/>
+                        </span>
+
+                        Conférences & Lounge
+                    </a>
+
                 </div>
-
-                <p class="mt-5 text-center text-sm text-slate-500">
-                    {{ $salon?->name ?? 'Refrigair Expo 2027' }}
-                </p>
-
-                @if ($salon?->start_date)
-                    <p class="mt-1 text-center text-xs text-slate-500">
-                        Début : {{ $salon->start_date->format('d/m/Y') }}
-                    </p>
-                @endif
 
             </article>
 
         </section>
 
+        {{-- ======================================== --}}
+        {{-- 5. ENTREPRISE + DEMANDES RECENTES      --}}
+        {{-- ======================================== --}}
+
+        <section class="grid grid-cols-1 gap-5 xl:grid-cols-12">
+
+            
+{{-- ======================================== --}}
+{{-- MON ENTREPRISE                          --}}
+{{-- ======================================== --}}
+
+<article
+    class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 xl:col-span-5"
+>
+
+    {{-- HEADER --}}
+
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+
+        <div class="flex items-center gap-2">
+
+            <span class="grid size-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                <x-admin.icon
+                    name="storefront"
+                    class="size-5"
+                />
+            </span>
+
+            <h2 class="text-lg font-bold text-[#0F2347]">
+                Mon entreprise
+            </h2>
+
+        </div>
+
+        <a
+            href="{{ route('exhibitor.profile') }}"
+            class="text-xs font-semibold text-blue-600 transition hover:underline"
+        >
+            Mon profil &rarr;
+        </a>
+
+    </div>
+
+    {{-- LOGO + NOM ENTREPRISE --}}
+
+    <div
+        class="flex min-w-0 items-center gap-4 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/80 to-white p-4"
+    >
+
+        {{-- LOGO --}}
+
+        <div
+            class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:size-24"
+        >
+
+            @if ($exhibitor->logo)
+
+                <img
+                    src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($exhibitor->logo) }}"
+                    alt="Logo de {{ $exhibitor->company_name }}"
+                    class="h-full w-full object-contain"
+                    loading="lazy"
+                >
+
+            @else
+
+                @php
+                    $companyInitials = collect(
+                        preg_split(
+                            '/\s+/',
+                            trim($exhibitor->company_name)
+                        )
+                    )
+                        ->filter()
+                        ->take(2)
+                        ->map(
+                            fn ($word) =>
+                                mb_strtoupper(mb_substr($word, 0, 1))
+                        )
+                        ->implode('') ?: 'E';
+                @endphp
+
+                <span
+                    class="grid h-full w-full place-items-center rounded-xl bg-blue-100 text-2xl font-extrabold text-blue-700"
+                >
+                    {{ $companyInitials }}
+                </span>
+
+            @endif
+
+        </div>
+
+        {{-- NOM --}}
+
+        <div class="min-w-0 flex-1">
+
+            <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                Entreprise exposante
+            </p>
+
+            <h3
+                class="mt-1 break-words text-lg font-extrabold leading-snug text-[#0F2347] sm:text-xl"
+            >
+                {{ $exhibitor->company_name }}
+            </h3>
+
+            <span
+                class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+            >
+                <span class="size-2 rounded-full bg-emerald-500"></span>
+
+                Exposant
+            </span>
+
+        </div>
+
+    </div>
+
+    {{-- INFORMATIONS --}}
+
+    <dl class="mt-5 divide-y divide-slate-100 text-sm">
+
+        {{-- CONTACT --}}
+
+        <div class="flex items-start justify-between gap-4 py-3">
+
+            <dt class="shrink-0 text-slate-500">
+                Responsable
+            </dt>
+
+            <dd class="min-w-0 break-words text-right font-semibold text-[#0F2347]">
+                {{ $exhibitor->contact_name ?: '—' }}
+            </dd>
+
+        </div>
+
+        {{-- EMAIL --}}
+
+        <div class="flex items-start justify-between gap-4 py-3">
+
+            <dt class="shrink-0 text-slate-500">
+                Email
+            </dt>
+
+            <dd class="min-w-0 break-all text-right font-semibold text-[#0F2347]">
+
+                @if ($exhibitor->email)
+
+                    <a
+                        href="mailto:{{ $exhibitor->email }}"
+                        class="transition hover:text-blue-600 hover:underline"
+                    >
+                        {{ $exhibitor->email }}
+                    </a>
+
+                @else
+                    —
+                @endif
+
+            </dd>
+
+        </div>
+
+        {{-- TELEPHONE --}}
+
+        <div class="flex items-start justify-between gap-4 py-3">
+
+            <dt class="shrink-0 text-slate-500">
+                Téléphone
+            </dt>
+
+            <dd class="min-w-0 text-right font-semibold text-[#0F2347]">
+
+                @if ($exhibitor->phone)
+
+                    <a
+                        href="tel:{{ preg_replace('/[^\d+]/', '', $exhibitor->phone) }}"
+                        class="hover:text-blue-600 hover:underline"
+                    >
+                        {{ $exhibitor->phone }}
+                    </a>
+
+                @else
+                    —
+                @endif
+
+            </dd>
+
+        </div>
+
+        {{-- COMMERCIAL REFERENT --}}
+
+        <div class="flex items-start justify-between gap-4 py-3">
+
+            <dt class="shrink-0 text-slate-500">
+                Commercial référent
+            </dt>
+
+            <dd class="min-w-0 break-words text-right font-semibold text-[#0F2347]">
+                {{ $exhibitor->commercial?->name ?? 'Non attribué' }}
+            </dd>
+
+        </div>
+
+    </dl>
+
+    {{-- BOUTON --}}
+
+    <div class="mt-5 border-t border-slate-100 pt-4">
+
+        <a
+            href="{{ route('exhibitor.profile') }}"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
+        >
+            <x-admin.icon name="settings" class="size-4"/>
+
+            Gérer mon profil
+
+            <span aria-hidden="true">&rarr;</span>
+        </a>
+
+    </div>
+
+</article>
+
+
+            {{-- DERNIERES DEMANDES --}}
+
+            <article class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-7">
+
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+
+                    <h2 class="text-lg font-bold text-[#0F2347]">
+                        Mes dernières demandes d'équipements
+                    </h2>
+
+                    <a
+                        href="{{ route('exhibitor.requests.index') }}"
+                        class="text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                        Voir toutes &rarr;
+                    </a>
+
+                </div>
+
+                <div class="min-w-0 overflow-x-auto">
+
+                    <table class="w-full min-w-[470px] text-left text-sm">
+
+                        <thead class="bg-slate-50 text-xs text-slate-600">
+                            <tr>
+                                <th class="px-3 py-3">Demande</th>
+                                <th class="px-3 py-3">Date</th>
+                                <th class="px-3 py-3">Montant</th>
+                                <th class="px-3 py-3">Statut</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-slate-100">
+
+                            @forelse ($recentRequests as $order)
+
+                                @php
+                                    $status = match ($order->status) {
+                                        'approved' => [
+                                            'label' => 'Approuvée',
+                                            'class' => 'bg-emerald-50 text-emerald-700',
+                                        ],
+                                        'rejected' => [
+                                            'label' => 'Refusée',
+                                            'class' => 'bg-red-50 text-red-700',
+                                        ],
+                                        default => [
+                                            'label' => 'En attente',
+                                            'class' => 'bg-amber-50 text-amber-700',
+                                        ],
+                                    };
+                                @endphp
+
+                                <tr>
+
+                                    <td class="px-3 py-4 font-semibold text-[#0F2347]">
+                                        #{{ $order->id }}
+                                    </td>
+
+                                    <td class="whitespace-nowrap px-3 py-4 text-slate-600">
+                                        {{ $order->created_at?->format('d/m/Y') }}
+                                    </td>
+
+                                    <td class="whitespace-nowrap px-3 py-4 text-slate-700">
+                                        {{ number_format((float) $order->total_amount, 2, ',', ' ') }}
+                                        DH
+                                    </td>
+
+                                    <td class="px-3 py-4">
+                                        <span class="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $status['class'] }}">
+                                            {{ $status['label'] }}
+                                        </span>
+                                    </td>
+
+                                </tr>
+
+                            @empty
+
+                                <tr>
+                                    <td colspan="4" class="px-3 py-10 text-center text-slate-500">
+                                        Aucune demande pour le moment
+                                    </td>
+                                </tr>
+
+                            @endforelse
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </article>
+
+        </section>
+
+        {{-- ======================================== --}}
+        {{-- 6. RAPPEL DU SALON                    --}}
+        {{-- ======================================== --}}
+
+        @if ($salon)
+
+            <section class="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[#0F2347] p-5 text-white shadow-sm sm:p-6">
+
+                <div>
+
+                    <h2 class="text-lg font-extrabold">
+                        {{ $salon->name }}
+                    </h2>
+
+                    <p class="mt-1 text-sm text-blue-100">
+                        @if ($daysRemaining !== null)
+                            {{ $daysRemaining }} jour(s) avant l'événement
+                        @else
+                            Dates du salon à consulter
+                        @endif
+                    </p>
+
+                </div>
+
+                <a
+                    href="{{ route('exhibitor.support.index') }}"
+                    class="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-[#0F2347] transition hover:bg-blue-50"
+                >
+                    Contacter mon commercial
+                </a>
+
+            </section>
+
+        @endif
+
     @else
 
+        {{-- AUCUNE ENTREPRISE ASSOCIEE --}}
+
         <section class="rounded-2xl border border-amber-200 bg-white p-8 shadow-sm">
+
             <h2 class="text-xl font-bold text-[#0F2347]">
                 Aucune entreprise associée
             </h2>
@@ -554,6 +905,14 @@
                 Votre compte n'est lié à aucune fiche exposant.
                 Contactez l'organisation du salon.
             </p>
+
+            <a
+                href="{{ route('exhibitor.support.index') }}"
+                class="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
+            >
+                Contacter l'assistance
+            </a>
+
         </section>
 
     @endif

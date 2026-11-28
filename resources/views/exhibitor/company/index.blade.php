@@ -60,41 +60,21 @@
             </div>
         </div>
 
-        <!-- SALON -->
-        <div class="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 shadow-sm">
-            <div class="flex items-center gap-3">
-                <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-100 text-blue-700">
-                    <svg class="size-6" viewBox="0 0 24 24"
-                         fill="none" stroke="currentColor"
-                         stroke-width="1.8" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="2"/>
-                        <path d="M7 3v4M17 3v4M3 10h18"/>
-                    </svg>
-                </span>
+        
+{{-- BANNIÈRE OFFICIELLE REFRIGAIR EXPO --}}
 
-                <div>
-                    <h2 class="font-bold text-[#0F2347]">
-                        {{ $salon?->name ?? 'Refrigair Expo 2027' }}
-                    </h2>
+<div class="w-full min-w-0 overflow-hidden rounded-2xl border border-blue-100 bg-[#DFF2F8] shadow-sm xl:w-[570px]">
 
-                    <p class="mt-1 text-xs text-slate-500">
-                        @if ($salon)
-                            {{ $formatDate($salon->start_date) }}
-                            —
-                            {{ $formatDate($salon->end_date) }}
-                            @if ($salon->venue)
-                                · {{ $salon->venue }}
-                            @endif
-                            @if ($salon->city)
-                                · {{ $salon->city }}
-                            @endif
-                        @else
-                            Dates et lieu à confirmer
-                        @endif
-                    </p>
-                </div>
-            </div>
-        </div>
+    <img
+        src="{{ asset('assets/images/refrig_air_expo_cover.jpg') }}"
+        alt="Refrigair Expo 2027 — Du 2 au 4 février 2027 à l'OFEC Casablanca"
+        class="block h-auto w-full object-contain"
+        loading="eager"
+        decoding="async"
+    >
+
+</div>
+
 
     </header>
 
@@ -213,47 +193,133 @@
         <!-- RIGHT COLUMN -->
         <div class="space-y-5">
 
-            <!-- DETAILS STAND -->
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            
+{{-- ======================================== --}}
+{{-- DÉTAILS DU STAND                         --}}
+{{-- ======================================== --}}
 
-                <h2 class="text-lg font-extrabold text-[#0F2347]">
-                    Détails du stand
-                </h2>
+<section
+    id="details-stand"
+    class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+>
 
-                <div class="mt-5 grid grid-cols-2 gap-4 rounded-xl bg-blue-50/60 p-5">
+    {{-- HEADER --}}
 
-                    <div>
-                        <p class="text-sm text-slate-500">
-                            Numéro du stand
-                        </p>
+    <div class="flex flex-wrap items-center justify-between gap-3 px-6 pt-6">
 
-                        <p class="mt-2 text-3xl font-extrabold text-blue-700">
-                            {{ $exhibitor->stand_number ?: '—' }}
-                        </p>
-                    </div>
+        <div>
+            <h2 class="text-lg font-extrabold text-[#0F2347]">
+                Détails du stand
+            </h2>
 
-                    <div class="border-l border-blue-200 pl-5">
-                        <p class="text-sm text-slate-500">
-                            Superficie
-                        </p>
+            <p class="mt-1 text-xs text-slate-500">
+                Informations relatives à votre espace d'exposition.
+            </p>
+        </div>
 
-                        <p class="mt-2 text-2xl font-extrabold text-[#0F2347]">
-                            @if ($exhibitor->area_sqm !== null)
-                                {{ number_format((float) $exhibitor->area_sqm, 2, ',', ' ') }} m²
-                            @else
-                                —
-                            @endif
-                        </p>
-                    </div>
+        <span
+            class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"
+        >
+            <x-admin.icon name="storefront" class="size-4" />
+            Stand exposant
+        </span>
 
-                </div>
+    </div>
 
-                <p class="mt-5 text-sm leading-6 text-slate-500">
-                    Les informations de votre stand sont définies
-                    par l'organisation du salon.
-                </p>
+    {{-- INFORMATIONS RÉELLES DU STAND --}}
 
-            </section>
+    <div class="mx-6 mt-5 grid grid-cols-2 gap-4 rounded-xl bg-blue-50/60 p-5">
+
+        <div>
+            <p class="text-xs font-medium text-slate-500">
+                Numéro du stand
+            </p>
+
+            <p class="mt-2 text-2xl font-extrabold text-blue-700 sm:text-3xl">
+                {{ $exhibitor->stand_number ?: '—' }}
+            </p>
+        </div>
+
+        <div class="border-l border-blue-200 pl-5">
+            <p class="text-xs font-medium text-slate-500">
+                Superficie
+            </p>
+
+            <p class="mt-2 text-xl font-extrabold text-[#0F2347] sm:text-2xl">
+                @if ($exhibitor->area_sqm !== null)
+                    {{ number_format(
+                        (float) $exhibitor->area_sqm,
+                        2,
+                        ',',
+                        ' '
+                    ) }} m²
+                @else
+                    —
+                @endif
+            </p>
+        </div>
+
+    </div>
+
+    {{-- IMAGE ILLUSTRATIVE --}}
+
+    <figure class="mx-6 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 via-white to-slate-50">
+
+        <div class="relative">
+
+            <img
+                src="{{ asset('assets/conferences/images/Stand d’exposition bleu et blanc moderne.png') }}"
+                alt="Exemple illustratif d'un stand modulaire bleu et blanc"
+                class="mx-auto h-56 w-full object-contain p-3 sm:h-64"
+                loading="lazy"
+                decoding="async"
+            >
+
+            <span
+                class="absolute left-3 top-3 rounded-lg border border-blue-100 bg-white/95 px-3 py-1.5 text-[11px] font-bold text-blue-700 shadow-sm"
+            >
+                MODÈLE ILLUSTRATIF
+            </span>
+
+        </div>
+
+        <figcaption class="border-t border-slate-200 bg-white px-4 py-3">
+
+            <p class="text-xs font-bold text-[#0F2347]">
+                Exemple de stand modulaire
+            </p>
+
+            <p class="mt-1 text-xs leading-5 text-slate-600">
+                Image présentée uniquement à titre illustratif.
+                Elle ne représente pas votre stand réel.
+                Le design, les dimensions et les équipements
+                peuvent être différents.
+            </p>
+
+        </figcaption>
+
+    </figure>
+
+    {{-- MESSAGE INFORMATIF --}}
+
+    <div class="mx-6 mb-6 mt-5 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+
+        <x-admin.icon
+            name="info"
+            class="mt-0.5 size-5 shrink-0 text-blue-600"
+        />
+
+        <p class="text-xs leading-5 text-slate-600">
+            Les informations de votre stand sont définies
+            par l'organisation du salon. Pour toute question
+            sur votre emplacement ou votre configuration,
+            veuillez contacter votre commercial référent.
+        </p>
+
+    </div>
+
+</section>
+
 
             <!-- COMMERCIAL -->
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
