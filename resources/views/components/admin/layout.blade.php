@@ -46,6 +46,12 @@
             'active' => request()->routeIs('admin.exposants.*'),
         ],
         [
+            'label' => 'Fiches Catalogue',
+            'icon' => 'layers',
+            'route' => 'admin.catalog.index',
+            'active' => request()->routeIs('admin.catalog.*'),
+        ],
+        [
             'label' => 'Badges',
             'icon' => 'badge',
             'route' => 'admin.badges.index',

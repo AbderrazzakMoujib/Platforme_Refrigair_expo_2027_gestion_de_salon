@@ -20,6 +20,12 @@
             'active' => request()->routeIs('exhibitor.profile*'),
         ],
         [
+            'label' => 'Fiche Catalogue',
+            'icon' => 'layers',
+            'url' => route('exhibitor.catalog-profile.edit'),
+            'active' => request()->routeIs('exhibitor.catalog-profile.*'),
+        ],
+        [
             'label' => 'Plan du Salon',
             'icon' => 'map',
             'url' => route('exhibitor.salon-plan.index'),
@@ -214,6 +220,12 @@
                                 >
                                     <rect x="5" y="3" width="14" height="18" rx="2"/>
                                     <path d="M9 8h6M9 12h6M9 16h4"/>
+                                </svg>
+                                @break
+                            @case('layers')
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m12 2 9 5-9 5-9-5 9-5Z"/>
+                                    <path d="m3 12 9 5 9-5M3 17l9 5 9-5"/>
                                 </svg>
                                 @break
                             @case('calendar')

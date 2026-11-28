@@ -22,6 +22,12 @@
             'active' => request()->routeIs('commercial.exhibitors.*'),
         ],
         [
+            'label' => 'Fiches Catalogue',
+            'icon' => 'layers',
+            'route' => 'commercial.catalog.index',
+            'active' => request()->routeIs('commercial.catalog.*'),
+        ],
+        [
             'label' => 'Badges',
             'icon' => 'badge',
             'route' => 'commercial.badges.index',

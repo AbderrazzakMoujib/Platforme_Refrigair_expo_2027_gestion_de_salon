@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExhibitorBadgeController;
 use App\Http\Controllers\ResponsableConferenceController;
 use App\Http\Controllers\SalonPlanController;
+use App\Http\Controllers\ExhibitorCatalogProfileController;
+use App\Http\Controllers\CommercialCatalogController;
+use App\Http\Controllers\Admin\ExhibitorCatalogController;
 
 
 Route::get('/', function () {
@@ -55,6 +58,11 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->midd
 
 Route::middleware(['auth', 'role:admin'])->get('/admin', AdminDashboardController::class)->name('admin.index');
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/fiches-catalogue', [ExhibitorCatalogController::class, 'index'])->name('catalog.index');
+    Route::get('/fiches-catalogue/export.xlsx', [ExhibitorCatalogController::class, 'export'])->name('catalog.export');
+    Route::get('/fiches-catalogue/logos.zip', [ExhibitorCatalogController::class, 'logosZip'])->name('catalog.logos.zip');
+    Route::get('/fiches-catalogue/{exhibitor}/logo', [ExhibitorCatalogController::class, 'logo'])->whereNumber('exhibitor')->name('catalog.logo');
+    Route::get('/fiches-catalogue/{exhibitor}', [ExhibitorCatalogController::class, 'show'])->whereNumber('exhibitor')->name('catalog.show');
     Route::get('/plan-salon', [SalonPlanController::class, 'admin'])->name('salon-plan.index');
     Route::get('/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('salon-plan.preview');
     Route::get('/plan-salon/telecharger', [SalonPlanController::class, 'download'])->name('salon-plan.download');
@@ -248,6 +256,9 @@ Route::get('/admin/badges/verify/{token}', [BadgeController::class, 'verify'])
 
 
 Route::middleware(['auth', 'role:commercial'])->group(function (): void {
+    Route::get('/commercial/fiches-catalogue', [CommercialCatalogController::class, 'index'])->name('commercial.catalog.index');
+    Route::get('/commercial/fiches-catalogue/{exhibitor}/logo', [CommercialCatalogController::class, 'logo'])->whereNumber('exhibitor')->name('commercial.catalog.logo');
+    Route::get('/commercial/fiches-catalogue/{exhibitor}', [CommercialCatalogController::class, 'show'])->whereNumber('exhibitor')->name('commercial.catalog.show');
     Route::get('/commercial', [App\Http\Controllers\CommercialDashboardController::class, '__invoke'])->name('commercial.index');
     Route::get('/commercial/plan-salon', [SalonPlanController::class, 'commercial'])->name('commercial.salon-plan.index');
     Route::get('/commercial/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('commercial.salon-plan.preview');
@@ -485,6 +496,9 @@ Route::middleware(['auth', 'role:responsable_technique'])
     });
 
 Route::middleware(['auth', 'role:exposant'])->group(function (): void {
+    Route::get('/exposant/fiche-catalogue', [ExhibitorCatalogProfileController::class, 'edit'])->name('exhibitor.catalog-profile.edit');
+    Route::put('/exposant/fiche-catalogue', [ExhibitorCatalogProfileController::class, 'update'])->name('exhibitor.catalog-profile.update');
+    Route::get('/exposant/fiche-catalogue/logo', [ExhibitorCatalogProfileController::class, 'logo'])->name('exhibitor.catalog-profile.logo');
     Route::get('/exposant', [App\Http\Controllers\ExhibitorDashboardController::class, '__invoke'])->name('exposant.index');
     Route::get('/exposant/plan-salon', [SalonPlanController::class, 'exhibitor'])->name('exhibitor.salon-plan.index');
     Route::get('/exposant/plan-salon/visualiser', [SalonPlanController::class, 'preview'])->name('exhibitor.salon-plan.preview');
